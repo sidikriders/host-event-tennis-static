@@ -16,14 +16,18 @@ export function generateAmericanoMatch(
 
   if (presentIds.length < required) return null;
 
-  // Count how many times each player has played
+  // Count how many times each player has played, and track the last round they played
   const playCounts: Record<string, number> = {};
-  for (const id of presentIds) playCounts[id] = 0;
+  const lastRoundPlayed: Record<string, number> = {};
+  for (const id of presentIds) { playCounts[id] = 0; lastRoundPlayed[id] = 0; }
 
   for (const m of existingMatches) {
     if (m.status === 'pending' || m.status === 'ongoing' || m.status === 'completed') {
       for (const id of [...m.teamA, ...m.teamB]) {
-        if (id in playCounts) playCounts[id] = (playCounts[id] || 0) + 1;
+        if (id in playCounts) {
+          playCounts[id] = (playCounts[id] || 0) + 1;
+          if (m.round > (lastRoundPlayed[id] || 0)) lastRoundPlayed[id] = m.round;
+        }
       }
     }
   }
@@ -41,10 +45,15 @@ export function generateAmericanoMatch(
     }
   }
 
-  // Sort by play count ascending, then shuffle within same count for fairness
+  // Sort by play count ascending; within the same count prefer players who
+  // waited longer (lower lastRoundPlayed = sat out more rounds); randomise
+  // only when fully tied to ensure fair rotation.
   const sorted = [...presentIds].sort((a, b) => {
-    const diff = (playCounts[a] || 0) - (playCounts[b] || 0);
-    if (diff !== 0) return diff;
+    const countDiff = (playCounts[a] || 0) - (playCounts[b] || 0);
+    if (countDiff !== 0) return countDiff;
+    // Lower lastRoundPlayed means the player has been waiting longer → higher priority
+    const restDiff = (lastRoundPlayed[a] || 0) - (lastRoundPlayed[b] || 0);
+    if (restDiff !== 0) return restDiff;
     return Math.random() - 0.5;
   });
 
