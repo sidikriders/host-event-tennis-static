@@ -50,6 +50,7 @@ export function generateAmericanoMatch(
 
   // Select the required number of players with fewest play counts
   const selected = sorted.slice(0, required);
+  if (selected.length < required) return null;
 
   // For doubles, try to avoid pairs that played together last match
   let teamA: string[];
@@ -121,6 +122,7 @@ export function generateMexicanoMatch(
   const rankedIds = presentStats.map((s) => s.participantId);
   const unranked = presentIds.filter((id) => !rankedIds.includes(id));
   const orderedIds = [...rankedIds, ...unranked];
+  if (orderedIds.length < required) return null;
 
   let teamA: string[];
   let teamB: string[];

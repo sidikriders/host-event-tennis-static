@@ -149,24 +149,23 @@ export default function EventDetailContent() {
     reload();
   };
 
-  const handleExportTable = async () => {
-    if (!scoreTableRef.current) return;
+  const exportElementAsImage = async (element: HTMLElement, filename: string) => {
     const html2canvas = (await import('html2canvas')).default;
-    const canvas = await html2canvas(scoreTableRef.current, { scale: 2, useCORS: true });
+    const canvas = await html2canvas(element, { scale: 2, useCORS: true });
     const link = document.createElement('a');
-    link.download = `${event?.name ?? 'scoretable'}-table.png`;
+    link.download = filename;
     link.href = canvas.toDataURL('image/png');
     link.click();
   };
 
+  const handleExportTable = async () => {
+    if (!scoreTableRef.current) return;
+    await exportElementAsImage(scoreTableRef.current, `${event?.name ?? 'scoretable'}-table.png`);
+  };
+
   const handleExportChampions = async () => {
     if (!championsRef.current) return;
-    const html2canvas = (await import('html2canvas')).default;
-    const canvas = await html2canvas(championsRef.current, { scale: 2, useCORS: true });
-    const link = document.createElement('a');
-    link.download = `${event?.name ?? 'champions'}-champions.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    await exportElementAsImage(championsRef.current, `${event?.name ?? 'champions'}-champions.png`);
   };
 
   if (!loaded) {
