@@ -82,7 +82,7 @@ export default function MatchCard({
           <input
             type="number"
             min={0}
-            className="w-16 border border-gray-300 rounded-lg px-2 py-1 text-center font-bold text-lg focus:outline-none focus:ring-2 focus:ring-green-400"
+            className="w-16 border border-gray-300 rounded-lg px-2 py-1 text-center font-bold text-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
             value={scoreA}
             onChange={(e) => setScoreA(e.target.value)}
             placeholder="A"
@@ -91,7 +91,7 @@ export default function MatchCard({
           <input
             type="number"
             min={0}
-            className="w-16 border border-gray-300 rounded-lg px-2 py-1 text-center font-bold text-lg focus:outline-none focus:ring-2 focus:ring-green-400"
+            className="w-16 border border-gray-300 rounded-lg px-2 py-1 text-center font-bold text-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
             value={scoreB}
             onChange={(e) => setScoreB(e.target.value)}
             placeholder="B"

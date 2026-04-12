@@ -25,7 +25,7 @@ import {
   updateMatch,
   deleteMatch,
 } from '@/lib/storage';
-import { generateAmericanoMatch, generateMexicanoMatch } from '@/lib/matchGenerator';
+import { generateAmericanoMatch } from '@/lib/matchGenerator';
 import { calculateScoreTable } from '@/lib/scoreTable';
 
 import ParticipantForm from '@/components/ParticipantForm';
@@ -48,7 +48,6 @@ export default function EventDetailContent() {
   const [stats, setStats] = useState<PlayerStats[]>([]);
   const [tab, setTab] = useState<Tab>('participants');
   const [importModal, setImportModal] = useState(false);
-  const [generateMode, setGenerateMode] = useState<'americano' | 'mexicano'>('americano');
   const [loaded, setLoaded] = useState(false);
 
   const scoreTableRef = useRef<HTMLDivElement>(null);
@@ -123,11 +122,7 @@ export default function EventDetailContent() {
     }
 
     let match: Match | null = null;
-    if (generateMode === 'americano') {
-      match = generateAmericanoMatch(presentIds, matches, eventId, event.matchType);
-    } else {
-      match = generateMexicanoMatch(presentIds, matches, stats, eventId, event.matchType);
-    }
+    match = generateAmericanoMatch(presentIds, matches, eventId, event.matchType);
 
     if (match) {
       saveMatch(match);
@@ -304,25 +299,8 @@ export default function EventDetailContent() {
           <div className="max-w-2xl mx-auto space-y-4">
             <div className="bg-green-50 rounded-xl p-4 border border-green-200">
               <h2 className="font-bold text-gray-800 mb-3">Generate Match</h2>
-              <div className="flex gap-2 mb-3">
-                {(['americano', 'mexicano'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setGenerateMode(mode)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                      generateMode === mode
-                        ? 'bg-green-600 text-white'
-                        : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {mode === 'americano' ? '🎲 Americano' : '🏅 Mexicano'}
-                  </button>
-                ))}
-              </div>
               <p className="text-xs text-gray-500 mb-3">
-                {generateMode === 'americano'
-                  ? 'Americano: Ensures fair play count — players with fewer matches go first.'
-                  : 'Mexicano: Pairs based on current ranking (top vs top, bottom vs bottom).'}
+                Americano: Ensures fair play count — players with fewer matches go first.
               </p>
               <button
                 onClick={handleGenerateMatch}

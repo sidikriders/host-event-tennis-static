@@ -57,7 +57,7 @@ export default function ParticipantForm({ onAdd }: ParticipantFormProps) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
           <input
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Full name"
@@ -67,7 +67,7 @@ export default function ParticipantForm({ onAdd }: ParticipantFormProps) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
           <select
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
             value={gender}
             onChange={(e) => setGender(e.target.value as typeof gender)}
           >
@@ -79,7 +79,7 @@ export default function ParticipantForm({ onAdd }: ParticipantFormProps) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Skill Note</label>
           <input
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. Beginner, Advanced..."
@@ -88,7 +88,7 @@ export default function ParticipantForm({ onAdd }: ParticipantFormProps) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Origin</label>
           <select
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
             value={origin}
             onChange={(e) => setOrigin(e.target.value as typeof origin)}
           >
@@ -103,7 +103,7 @@ export default function ParticipantForm({ onAdd }: ParticipantFormProps) {
         <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
           <input
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
             value={instagram}
             onChange={(e) => setInstagram(e.target.value)}
             placeholder="@username (optional)"

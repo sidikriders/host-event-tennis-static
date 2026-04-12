@@ -52,7 +52,7 @@ export default function NewEventPage() {
               Event Name *
             </label>
             <input
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-400"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Sunday Americano"
@@ -64,7 +64,7 @@ export default function NewEventPage() {
             <label className="block text-sm font-semibold text-gray-700 mb-1">Date *</label>
             <input
               type="date"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-400"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
@@ -74,7 +74,7 @@ export default function NewEventPage() {
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Location *</label>
             <input
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-400"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g. Court 1, City Club"
