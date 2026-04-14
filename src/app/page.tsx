@@ -90,12 +90,18 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 pb-20">
-        <div className="mb-6 flex justify-center">
+        <div className="mb-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Link
             href="/events/new"
             className="inline-flex items-center gap-2 px-6 py-3 bg-white text-green-800 font-bold rounded-full shadow-lg hover:shadow-xl hover:bg-green-50 transition-all text-base"
           >
             <span className="text-xl">+</span> Create New Event
+          </Link>
+          <Link
+            href="/players"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-green-100 text-green-900 font-bold rounded-full shadow-lg hover:shadow-xl hover:bg-white transition-all text-base"
+          >
+            <span className="text-xl">👥</span> Manage Players
           </Link>
         </div>
 

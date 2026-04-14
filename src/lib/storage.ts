@@ -199,7 +199,35 @@ export async function saveParticipant(p: Participant): Promise<void> {
   }
 }
 
+export async function deleteParticipant(id: string): Promise<void> {
+  const matchCount = await getParticipantMatchCount(id);
+
+  if (matchCount > 0) {
+    throw new Error('Cannot delete player because they already have matches.');
+  }
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from('participants').delete().eq('id', id);
+
+  if (error) {
+    throw new Error(`Failed to delete participant: ${error.message}`);
+  }
+}
+
 // EventParticipants
+export async function getAllEventParticipants(): Promise<EventParticipant[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('event_participants')
+    .select('event_id, participant_id, present');
+
+  if (error) {
+    throw new Error(`Failed to load event participants: ${error.message}`);
+  }
+
+  return (data ?? []).map(mapEventParticipantRow);
+}
+
 export async function getEventParticipants(
   eventId: string
 ): Promise<EventParticipant[]> {
@@ -257,6 +285,20 @@ export async function removeEventParticipant(
 }
 
 // Matches
+export async function getAllMatches(): Promise<Match[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('matches')
+    .select('id, event_id, round, team_a, team_b, score_a, score_b, status, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to load matches: ${error.message}`);
+  }
+
+  return (data ?? []).map(mapMatchRow);
+}
+
 export async function getMatches(eventId: string): Promise<Match[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
@@ -301,4 +343,12 @@ export async function deleteMatch(id: string): Promise<void> {
   if (error) {
     throw new Error(`Failed to delete match: ${error.message}`);
   }
+}
+
+export async function getParticipantMatchCount(participantId: string): Promise<number> {
+  const matches = await getAllMatches();
+
+  return matches.filter(
+    (match) => match.teamA.includes(participantId) || match.teamB.includes(participantId)
+  ).length;
 }

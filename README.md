@@ -60,6 +60,7 @@ If you rename the repository, the GitHub Actions build automatically adjusts the
 ## Notes
 
 - Events, participants, event attendance membership, and matches are stored in Supabase and shared across browsers that use the same project.
+- Participants act as the shared player master data. Admins can add and edit player records centrally, and permanent delete is allowed only when a player has no match history.
 - Player stats are derived from participants plus matches, so there is no separate `player_stats` table.
 - GitHub Pages still serves only the static frontend; Supabase provides the shared database.
 
@@ -110,6 +111,41 @@ create index if not exists event_participants_event_id_idx on public.event_parti
 create index if not exists event_participants_participant_id_idx on public.event_participants(participant_id);
 create index if not exists matches_event_id_idx on public.matches(event_id);
 create index if not exists matches_event_round_idx on public.matches(event_id, round);
+
+create or replace function public.prevent_delete_participant_with_matches()
+returns trigger
+language plpgsql
+as $$
+declare
+	player_has_matches boolean;
+begin
+	if to_regclass('public.matches') is null then
+		return old;
+	end if;
+
+	execute
+		'select exists (
+			select 1
+			from public.matches
+			where $1 = any(team_a) or $1 = any(team_b)
+		)'
+	into player_has_matches
+	using old.id::text;
+
+	if player_has_matches then
+		raise exception 'Cannot delete participant because they already have matches.';
+	end if;
+
+	return old;
+end;
+$$;
+
+drop trigger if exists participants_prevent_delete_with_matches on public.participants;
+
+create trigger participants_prevent_delete_with_matches
+before delete on public.participants
+for each row
+execute function public.prevent_delete_participant_with_matches();
 
 alter table public.events enable row level security;
 alter table public.participants enable row level security;
