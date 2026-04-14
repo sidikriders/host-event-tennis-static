@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
 import { User, AuthError } from '@supabase/supabase-js';
 
 interface UserProfile {
@@ -24,10 +24,16 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isReady, setIsReady] = useState(false);
-  const supabase = getSupabaseClient();
+  const [isReady, setIsReady] = useState(!isSupabaseConfigured);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setIsReady(true);
+      return;
+    }
+
+    const supabase = getSupabaseClient();
+
     const buildAuthUser = async (baseUser: User | null): Promise<AuthUser | null> => {
       if (!baseUser) {
         return null;
@@ -66,14 +72,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, []);
 
   const login = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return {
+        error: {
+          name: 'AuthError',
+          message:
+            'Missing Supabase environment variables. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.',
+          status: 500,
+        } as AuthError,
+      };
+    }
+
+    const supabase = getSupabaseClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
 
   const logout = async () => {
+    if (!isSupabaseConfigured) {
+      return;
+    }
+
+    const supabase = getSupabaseClient();
     await supabase.auth.signOut();
   };
 

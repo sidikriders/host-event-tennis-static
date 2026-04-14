@@ -4,7 +4,7 @@ Static Next.js app for managing tennis Americano and Mexicano events. Events, pa
 
 ## Local development
 
-Use Node.js 22.20.0 or newer.
+Use Node.js 22.20.0 or newer. The repository includes `.nvmrc`, so `nvm use` will select the expected version.
 
 Install dependencies and start the dev server:
 
@@ -47,7 +47,18 @@ In the GitHub repository:
 1. Go to `Settings` → `Pages`.
 2. Set `Source` to `GitHub Actions`.
 
-### 3. Wait for deployment
+### 3. Add GitHub Actions secrets
+
+In the GitHub repository, go to `Settings` → `Secrets and variables` → `Actions` and add:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+```
+
+These are required because the static GitHub Pages build inlines the public Supabase configuration at build time.
+
+### 4. Wait for deployment
 
 After the workflow finishes, the app will be available at:
 
@@ -56,6 +67,8 @@ https://<your-github-username>.github.io/host-event-tennis-static/
 ```
 
 If you rename the repository, the GitHub Actions build automatically adjusts the base path to the new repository name.
+
+The workflow also caches `.next/cache` to speed up rebuilds.
 
 ## Notes
 
@@ -88,7 +101,7 @@ create table if not exists public.participants (
 );
 
 create table if not exists public.event_participants (
-	event_id uuid not null references public.events(id) on delete cascade,
+	event_id uuid not null references public.events(id) on delete restrict,
 	participant_id uuid not null references public.participants(id) on delete cascade,
 	present boolean not null default true,
 	primary key (event_id, participant_id)
@@ -96,7 +109,7 @@ create table if not exists public.event_participants (
 
 create table if not exists public.matches (
 	id uuid primary key,
-	event_id uuid not null references public.events(id) on delete cascade,
+	event_id uuid not null references public.events(id) on delete restrict,
 	round integer not null check (round > 0),
 	team_a text[] not null,
 	team_b text[] not null,
