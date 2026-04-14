@@ -1,10 +1,10 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { Suspense, FormEvent, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, isReady, login } = useAuth();
@@ -79,5 +79,19 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-green-950 via-green-800 to-green-600 flex items-center justify-center px-4 py-10">
+          <div className="text-white text-lg font-semibold">Loading...</div>
+        </div>
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
   );
 }

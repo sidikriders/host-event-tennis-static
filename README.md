@@ -1,6 +1,6 @@
 # Tennis Event Host
 
-Static Next.js app for managing tennis Americano and Mexicano events. Events are stored in Supabase, while participant attendance and match generation remain in browser local storage.
+Static Next.js app for managing tennis Americano and Mexicano events. Events, participants, attendance membership, and matches are stored in Supabase.
 
 ## Local development
 
@@ -59,8 +59,8 @@ If you rename the repository, the GitHub Actions build automatically adjusts the
 
 ## Notes
 
-- Event records are stored in Supabase and shared across browsers that use the same project.
-- Participant attendance and matches are still stored in browser local storage per device.
+- Events, participants, event attendance membership, and matches are stored in Supabase and shared across browsers that use the same project.
+- Player stats are derived from participants plus matches, so there is no separate `player_stats` table.
 - GitHub Pages still serves only the static frontend; Supabase provides the shared database.
 
 ## Supabase SQL
@@ -77,35 +77,159 @@ create table if not exists public.events (
 	created_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.participants (
+	id uuid primary key,
+	name text not null,
+	gender text not null check (gender in ('male', 'female', 'other')),
+	note text not null default '',
+	origin text check (origin in ('reclub', 'kuyy', 'ayo', 'wa', 'other')),
+	instagram text
+);
+
+create table if not exists public.event_participants (
+	event_id uuid not null references public.events(id) on delete cascade,
+	participant_id uuid not null references public.participants(id) on delete cascade,
+	present boolean not null default true,
+	primary key (event_id, participant_id)
+);
+
+create table if not exists public.matches (
+	id uuid primary key,
+	event_id uuid not null references public.events(id) on delete cascade,
+	round integer not null check (round > 0),
+	team_a text[] not null,
+	team_b text[] not null,
+	score_a integer,
+	score_b integer,
+	status text not null check (status in ('pending', 'ongoing', 'completed')),
+	created_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists participants_name_idx on public.participants(name);
+create index if not exists event_participants_event_id_idx on public.event_participants(event_id);
+create index if not exists event_participants_participant_id_idx on public.event_participants(participant_id);
+create index if not exists matches_event_id_idx on public.matches(event_id);
+create index if not exists matches_event_round_idx on public.matches(event_id, round);
+
 alter table public.events enable row level security;
+alter table public.participants enable row level security;
+alter table public.event_participants enable row level security;
+alter table public.matches enable row level security;
 
-drop policy if exists "Allow anonymous read access to events" on public.events;
-drop policy if exists "Allow anonymous insert access to events" on public.events;
-drop policy if exists "Allow anonymous update access to events" on public.events;
-drop policy if exists "Allow anonymous delete access to events" on public.events;
+drop policy if exists "Guests and users can read events" on public.events;
+drop policy if exists "Authenticated users can insert events" on public.events;
+drop policy if exists "Authenticated users can update events" on public.events;
+drop policy if exists "Authenticated users can delete events" on public.events;
+drop policy if exists "Guests and users can read participants" on public.participants;
+drop policy if exists "Authenticated users can insert participants" on public.participants;
+drop policy if exists "Authenticated users can update participants" on public.participants;
+drop policy if exists "Authenticated users can delete participants" on public.participants;
+drop policy if exists "Guests and users can read event participants" on public.event_participants;
+drop policy if exists "Authenticated users can insert event participants" on public.event_participants;
+drop policy if exists "Authenticated users can update event participants" on public.event_participants;
+drop policy if exists "Authenticated users can delete event participants" on public.event_participants;
+drop policy if exists "Guests and users can read matches" on public.matches;
+drop policy if exists "Authenticated users can insert matches" on public.matches;
+drop policy if exists "Authenticated users can update matches" on public.matches;
+drop policy if exists "Authenticated users can delete matches" on public.matches;
 
-create policy "Allow anonymous read access to events"
+create policy "Guests and users can read events"
 on public.events
 for select
-to anon
+to anon, authenticated
 using (true);
 
-create policy "Allow anonymous insert access to events"
+create policy "Authenticated users can insert events"
 on public.events
 for insert
-to anon
-with check (true);
+to authenticated
+with check (auth.uid() is not null);
 
-create policy "Allow anonymous update access to events"
+create policy "Authenticated users can update events"
 on public.events
 for update
-to anon
-using (true)
-with check (true);
+to authenticated
+using (auth.uid() is not null)
+with check (auth.uid() is not null);
 
-create policy "Allow anonymous delete access to events"
+create policy "Authenticated users can delete events"
 on public.events
 for delete
-to anon
+to authenticated
+using (auth.uid() is not null);
+
+create policy "Guests and users can read participants"
+on public.participants
+for select
+to anon, authenticated
 using (true);
+
+create policy "Authenticated users can insert participants"
+on public.participants
+for insert
+to authenticated
+with check (auth.uid() is not null);
+
+create policy "Authenticated users can update participants"
+on public.participants
+for update
+to authenticated
+using (auth.uid() is not null)
+with check (auth.uid() is not null);
+
+create policy "Authenticated users can delete participants"
+on public.participants
+for delete
+to authenticated
+using (auth.uid() is not null);
+
+create policy "Guests and users can read event participants"
+on public.event_participants
+for select
+to anon, authenticated
+using (true);
+
+create policy "Authenticated users can insert event participants"
+on public.event_participants
+for insert
+to authenticated
+with check (auth.uid() is not null);
+
+create policy "Authenticated users can update event participants"
+on public.event_participants
+for update
+to authenticated
+using (auth.uid() is not null)
+with check (auth.uid() is not null);
+
+create policy "Authenticated users can delete event participants"
+on public.event_participants
+for delete
+to authenticated
+using (auth.uid() is not null);
+
+create policy "Guests and users can read matches"
+on public.matches
+for select
+to anon, authenticated
+using (true);
+
+create policy "Authenticated users can insert matches"
+on public.matches
+for insert
+to authenticated
+with check (auth.uid() is not null);
+
+create policy "Authenticated users can update matches"
+on public.matches
+for update
+to authenticated
+using (auth.uid() is not null)
+with check (auth.uid() is not null);
+
+create policy "Authenticated users can delete matches"
+on public.matches
+for delete
+to authenticated
+using (auth.uid() is not null);
 ```

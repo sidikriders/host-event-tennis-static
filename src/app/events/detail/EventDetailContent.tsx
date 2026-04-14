@@ -71,13 +71,13 @@ export default function EventDetailContent() {
       }
       setEvent(ev);
 
-      const eps = getEventParticipants(eventId);
+      const eps = await getEventParticipants(eventId);
       setEventParticipants(eps);
 
-      const allP = getParticipants();
+      const allP = await getParticipants();
       setAllParticipants(allP);
 
-      const ms = getMatches(eventId);
+      const ms = await getMatches(eventId);
       setMatches(ms);
 
       const epParticipants = eps
@@ -114,34 +114,54 @@ export default function EventDetailContent() {
     (p) => !eventParticipants.some((ep) => ep.participantId === p.id)
   );
 
-  const handleAddParticipant = (p: Participant) => {
+  const handleAddParticipant = async (p: Participant) => {
     if (!isAuthenticated) return;
-    saveParticipant(p);
-    saveEventParticipant({ eventId, participantId: p.id, present: true });
-    reload();
+    try {
+      setError(null);
+      await saveParticipant(p);
+      await saveEventParticipant({ eventId, participantId: p.id, present: true });
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add participant.');
+    }
   };
 
-  const handleImportParticipant = (p: Participant) => {
+  const handleImportParticipant = async (p: Participant) => {
     if (!isAuthenticated) return;
-    saveEventParticipant({ eventId, participantId: p.id, present: true });
-    setImportModal(false);
-    reload();
+    try {
+      setError(null);
+      await saveEventParticipant({ eventId, participantId: p.id, present: true });
+      setImportModal(false);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import participant.');
+    }
   };
 
-  const handleRemoveParticipant = (participantId: string) => {
+  const handleRemoveParticipant = async (participantId: string) => {
     if (!isAuthenticated) return;
     if (!confirm('Remove this participant from the event?')) return;
-    removeEventParticipant(eventId, participantId);
-    reload();
+    try {
+      setError(null);
+      await removeEventParticipant(eventId, participantId);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove participant.');
+    }
   };
 
-  const handleAttendanceToggle = (participantId: string, present: boolean) => {
+  const handleAttendanceToggle = async (participantId: string, present: boolean) => {
     if (!isAuthenticated) return;
-    updateEventParticipant({ eventId, participantId, present });
-    reload();
+    try {
+      setError(null);
+      await updateEventParticipant({ eventId, participantId, present });
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update attendance.');
+    }
   };
 
-  const handleGenerateMatch = () => {
+  const handleGenerateMatch = async () => {
     if (!isAuthenticated) return;
     if (!event) return;
     const minPlayers = event.matchType === 'double' ? 4 : 2;
@@ -154,25 +174,40 @@ export default function EventDetailContent() {
     match = generateAmericanoMatch(presentIds, matches, eventId, event.matchType);
 
     if (match) {
-      saveMatch(match);
-      reload();
+      try {
+        setError(null);
+        await saveMatch(match);
+        await reload();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to create match.');
+      }
       setTab('matches');
     }
   };
 
-  const handleScoreUpdate = (matchId: string, scoreA: number, scoreB: number) => {
+  const handleScoreUpdate = async (matchId: string, scoreA: number, scoreB: number) => {
     if (!isAuthenticated) return;
     const m = matches.find((x) => x.id === matchId);
     if (!m) return;
-    updateMatch({ ...m, scoreA, scoreB, status: 'completed' });
-    reload();
+    try {
+      setError(null);
+      await updateMatch({ ...m, scoreA, scoreB, status: 'completed' });
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update match.');
+    }
   };
 
-  const handleDeleteMatch = (matchId: string) => {
+  const handleDeleteMatch = async (matchId: string) => {
     if (!isAuthenticated) return;
     if (!confirm('Delete this match?')) return;
-    deleteMatch(matchId);
-    reload();
+    try {
+      setError(null);
+      await deleteMatch(matchId);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete match.');
+    }
   };
 
   const exportElementAsImage = async (element: HTMLElement, filename: string) => {

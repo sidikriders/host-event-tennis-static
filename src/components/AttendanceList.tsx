@@ -5,7 +5,7 @@ import { EventParticipant, Participant } from '@/types';
 interface AttendanceListProps {
   eventParticipants: EventParticipant[];
   participants: Participant[];
-  onToggle: (participantId: string, present: boolean) => void;
+  onToggle: (participantId: string, present: boolean) => void | Promise<void>;
 }
 
 const ORIGIN_COLORS: Record<string, string> = {

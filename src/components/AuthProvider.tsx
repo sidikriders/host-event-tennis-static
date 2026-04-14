@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase'; // Your supabase client
+import { getSupabaseClient } from '@/lib/supabase';
 import { User, AuthError } from '@supabase/supabase-js';
 
 interface UserProfile {
@@ -25,6 +25,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const supabase = getSupabaseClient();
 
   useEffect(() => {
     const buildAuthUser = async (baseUser: User | null): Promise<AuthUser | null> => {
@@ -65,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [supabase]);
 
   const login = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });

@@ -5,7 +5,7 @@ import { Participant } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ParticipantFormProps {
-  onAdd: (participant: Participant) => void;
+  onAdd: (participant: Participant) => void | Promise<void>;
 }
 
 export default function ParticipantForm({ onAdd }: ParticipantFormProps) {
