@@ -4,7 +4,7 @@ Static Next.js app for managing tennis Americano and Mexicano events locally in 
 
 ## Local development
 
-Use Node.js 20 or newer.
+Use Node.js 22.20.0 or newer.
 
 Install dependencies and start the dev server:
 
