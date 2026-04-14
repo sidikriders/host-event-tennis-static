@@ -7,6 +7,7 @@ interface MatchCardProps {
   match: Match;
   participants: Participant[];
   onScoreUpdate: (matchId: string, scoreA: number, scoreB: number) => void;
+  onEdit: (match: Match) => void;
   onDelete: (matchId: string) => void;
   readOnly?: boolean;
 }
@@ -15,6 +16,7 @@ export default function MatchCard({
   match,
   participants,
   onScoreUpdate,
+  onEdit,
   onDelete,
   readOnly = false,
 }: MatchCardProps) {
@@ -114,7 +116,7 @@ export default function MatchCard({
           </button>
         </div>
       ) : !readOnly ? (
-        <div className="mt-3 flex justify-center">
+        <div className="mt-3 flex justify-center gap-4">
           <button
             onClick={() => {
               setScoreA(match.scoreA?.toString() ?? '');
@@ -124,6 +126,12 @@ export default function MatchCard({
             className="text-sm text-blue-600 hover:text-blue-800 font-medium"
           >
             {match.status === 'completed' ? '✏️ Edit Score' : '📝 Enter Score'}
+          </button>
+          <button
+            onClick={() => onEdit(match)}
+            className="text-sm text-green-700 hover:text-green-900 font-medium"
+          >
+            ⚙️ Edit Match
           </button>
         </div>
       ) : null}

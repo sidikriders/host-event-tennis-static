@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { v4 as uuidv4 } from 'uuid';
 
 import {
   Event,
@@ -31,6 +32,7 @@ import { calculateScoreTable } from '@/lib/scoreTable';
 import ParticipantForm from '@/components/ParticipantForm';
 import AttendanceList from '@/components/AttendanceList';
 import MatchCard from '@/components/MatchCard';
+import MatchEditorModal, { MatchEditorPayload } from '@/components/MatchEditorModal';
 import ScoreTable from '@/components/ScoreTable';
 import ChampionsCard from '@/components/ChampionsCard';
 import { useAuth } from '@/components/AuthProvider';
@@ -52,6 +54,9 @@ export default function EventDetailContent() {
   const [importModal, setImportModal] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingMatch, setEditingMatch] = useState<Match | null>(null);
+  const [matchModalOpen, setMatchModalOpen] = useState(false);
+  const [savingMatch, setSavingMatch] = useState(false);
 
   const scoreTableRef = useRef<HTMLDivElement>(null);
   const championsRef = useRef<HTMLDivElement>(null);
@@ -104,6 +109,11 @@ export default function EventDetailContent() {
 
   const eventParticipantObjects = eventParticipants
     .map((ep) => allParticipants.find((p) => p.id === ep.participantId))
+    .filter(Boolean) as Participant[];
+
+  const presentParticipants = eventParticipants
+    .filter((ep) => ep.present)
+    .map((ep) => allParticipants.find((participant) => participant.id === ep.participantId))
     .filter(Boolean) as Participant[];
 
   const presentIds = eventParticipants
@@ -185,6 +195,73 @@ export default function EventDetailContent() {
     }
   };
 
+  const handleCreateCustomMatch = () => {
+    if (!isAuthenticated || !event) return;
+
+    const minPlayers = event.matchType === 'double' ? 4 : 2;
+    if (presentIds.length < minPlayers) {
+      alert(`Need at least ${minPlayers} present players.`);
+      return;
+    }
+
+    setEditingMatch(null);
+    setMatchModalOpen(true);
+  };
+
+  const handleEditMatch = (match: Match) => {
+    if (!isAuthenticated) return;
+    setEditingMatch(match);
+    setMatchModalOpen(true);
+  };
+
+  const handleCloseMatchModal = () => {
+    if (savingMatch) return;
+    setEditingMatch(null);
+    setMatchModalOpen(false);
+  };
+
+  const handleSaveMatch = async (payload: MatchEditorPayload) => {
+    if (!isAuthenticated || !event) return;
+
+    setSavingMatch(true);
+    setError(null);
+
+    try {
+      if (editingMatch) {
+        await updateMatch({
+          ...editingMatch,
+          round: payload.round,
+          teamA: payload.teamA,
+          teamB: payload.teamB,
+          status: payload.status,
+          scoreA: payload.scoreA,
+          scoreB: payload.scoreB,
+        });
+      } else {
+        await saveMatch({
+          id: uuidv4(),
+          eventId,
+          round: payload.round,
+          teamA: payload.teamA,
+          teamB: payload.teamB,
+          scoreA: payload.scoreA,
+          scoreB: payload.scoreB,
+          status: payload.status,
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      setMatchModalOpen(false);
+      setEditingMatch(null);
+      setTab('matches');
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save match.');
+    } finally {
+      setSavingMatch(false);
+    }
+  };
+
   const handleScoreUpdate = async (matchId: string, scoreA: number, scoreB: number) => {
     if (!isAuthenticated) return;
     const m = matches.find((x) => x.id === matchId);
@@ -228,6 +305,20 @@ export default function EventDetailContent() {
     if (!championsRef.current) return;
     await exportElementAsImage(championsRef.current, `${event?.name ?? 'champions'}-champions.png`);
   };
+
+  const nextRound = matches.length > 0
+    ? Math.max(...matches.map((match) => match.round)) + 1
+    : 1;
+
+  const matchEditorParticipants = editingMatch
+    ? allParticipants.filter((participant) => {
+        if (presentIds.includes(participant.id)) {
+          return true;
+        }
+
+        return [...editingMatch.teamA, ...editingMatch.teamB].includes(participant.id);
+      })
+    : presentParticipants;
 
   if (!loaded) {
     return (
@@ -387,12 +478,20 @@ export default function EventDetailContent() {
                 <p className="text-xs text-gray-500 mb-3">
                   Americano: Ensures fair play count — players with fewer matches go first.
                 </p>
-                <button
-                  onClick={handleGenerateMatch}
-                  className="w-full py-2.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors"
-                >
-                  🎾 Generate Next Match
-                </button>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <button
+                    onClick={handleGenerateMatch}
+                    className="w-full rounded-xl bg-green-600 py-2.5 font-bold text-white transition-colors hover:bg-green-700"
+                  >
+                    🎾 Generate Next Match
+                  </button>
+                  <button
+                    onClick={handleCreateCustomMatch}
+                    className="w-full rounded-xl bg-white py-2.5 font-bold text-green-800 ring-1 ring-inset ring-green-200 transition-colors hover:bg-green-100"
+                  >
+                    ✍️ Create Custom Match
+                  </button>
+                </div>
                 <p className="text-xs text-gray-400 mt-2 text-center">
                   {presentIds.length} present · {matches.length} matches generated
                 </p>
@@ -412,6 +511,7 @@ export default function EventDetailContent() {
                     match={m}
                     participants={allParticipants}
                     onScoreUpdate={handleScoreUpdate}
+                    onEdit={handleEditMatch}
                     onDelete={handleDeleteMatch}
                     readOnly={!isAuthenticated}
                   />
@@ -495,6 +595,18 @@ export default function EventDetailContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {matchModalOpen && event && (
+        <MatchEditorModal
+          matchType={event.matchType}
+          participants={matchEditorParticipants}
+          nextRound={nextRound}
+          match={editingMatch}
+          saving={savingMatch}
+          onClose={handleCloseMatchModal}
+          onSave={handleSaveMatch}
+        />
       )}
     </div>
   );
