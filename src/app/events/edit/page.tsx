@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -9,7 +9,7 @@ import { getEvent, saveEvent } from '@/lib/storage';
 import { useAuth } from '@/components/AuthProvider';
 import EventForm from '@/components/EventForm';
 
-export default function EditEventPage() {
+function EditEventPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, isReady } = useAuth();
@@ -127,5 +127,19 @@ export default function EditEventPage() {
         />
       </main>
     </div>
+  );
+}
+
+export default function EditEventPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 flex items-center justify-center">
+          <div className="text-green-100 text-lg font-semibold">Loading...</div>
+        </div>
+      }
+    >
+      <EditEventPageContent />
+    </Suspense>
   );
 }
