@@ -3,8 +3,17 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase'; // Your supabase client
 import { User, AuthError } from '@supabase/supabase-js';
+
+interface UserProfile {
+  display_name: string | null;
+  skill_level: string | null;
+  hand_preference: string | null;
+}
+
+export type AuthUser = User & UserProfile;
+
 interface AuthContextValue {
-  user: User | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   isReady: boolean;
   // Use 'AuthError | null' instead of 'any'
@@ -14,23 +23,45 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    const buildAuthUser = async (baseUser: User | null): Promise<AuthUser | null> => {
+      if (!baseUser) {
+        return null;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('display_name, skill_level, hand_preference')
+        .eq('id', baseUser.id)
+        .maybeSingle();
+
+      return {
+        ...baseUser,
+        display_name: profile?.display_name ?? null,
+        skill_level: profile?.skill_level ?? null,
+        hand_preference: profile?.hand_preference ?? null,
+      };
+    };
+
     // 1. Check for an existing session on load
     const initializeAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+
+      setUser(await buildAuthUser(session?.user ?? null));
       setIsReady(true);
     };
 
-    initializeAuth();
+    void initializeAuth();
 
     // 2. Listen for changes (Sign-in, Sign-out, Token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setIsReady(true);
+      void buildAuthUser(session?.user ?? null).then((nextUser) => {
+        setUser(nextUser);
+        setIsReady(true);
+      });
     });
 
     return () => subscription.unsubscribe();

@@ -43,7 +43,7 @@ export default function HomePage() {
       <header className="px-4 pt-10 pb-6 text-center">
         <div className="max-w-2xl mx-auto flex items-center justify-end mb-5">
           <div className="inline-flex items-center gap-3 rounded-full bg-white/10 px-4 py-2 text-sm text-green-50">
-            <span>Signed in as {user?.username}</span>
+            <span>Signed in as {user?.display_name ?? user?.email}</span>
             <button
               onClick={() => {
                 logout();
