@@ -57,6 +57,7 @@ export default function EventDetailContent() {
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
   const [matchModalOpen, setMatchModalOpen] = useState(false);
   const [savingMatch, setSavingMatch] = useState(false);
+  const [generatingMatch, setGeneratingMatch] = useState(false);
 
   const scoreTableRef = useRef<HTMLDivElement>(null);
   const championsRef = useRef<HTMLDivElement>(null);
@@ -185,11 +186,14 @@ export default function EventDetailContent() {
 
     if (match) {
       try {
+        setGeneratingMatch(true);
         setError(null);
         await saveMatch(match);
         await reload();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to create match.');
+      } finally {
+        setGeneratingMatch(false);
       }
       setTab('matches');
     }
@@ -481,9 +485,10 @@ export default function EventDetailContent() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <button
                     onClick={handleGenerateMatch}
-                    className="w-full rounded-xl bg-green-600 py-2.5 font-bold text-white transition-colors hover:bg-green-700"
+                    disabled={generatingMatch}
+                    className="w-full rounded-xl bg-green-600 py-2.5 font-bold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-400"
                   >
-                    🎾 Generate Next Match
+                    {generatingMatch ? 'Generating Match...' : '🎾 Generate Next Match'}
                   </button>
                   <button
                     onClick={handleCreateCustomMatch}
