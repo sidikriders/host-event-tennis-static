@@ -33,12 +33,14 @@ import AttendanceList from '@/components/AttendanceList';
 import MatchCard from '@/components/MatchCard';
 import ScoreTable from '@/components/ScoreTable';
 import ChampionsCard from '@/components/ChampionsCard';
+import { useAuth } from '@/components/AuthProvider';
 
 type Tab = 'participants' | 'attendance' | 'matches' | 'scoreboard';
 
 export default function EventDetailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { isAuthenticated, user } = useAuth();
   const eventId = searchParams.get('id') ?? '';
 
   const [event, setEvent] = useState<Event | null>(null);
@@ -78,6 +80,12 @@ export default function EventDetailContent() {
 
   useEffect(() => { reload(); }, [reload]);
 
+  useEffect(() => {
+    if (!isAuthenticated && (tab === 'participants' || tab === 'attendance')) {
+      setTab('matches');
+    }
+  }, [isAuthenticated, tab]);
+
   const eventParticipantObjects = eventParticipants
     .map((ep) => allParticipants.find((p) => p.id === ep.participantId))
     .filter(Boolean) as Participant[];
@@ -91,29 +99,34 @@ export default function EventDetailContent() {
   );
 
   const handleAddParticipant = (p: Participant) => {
+    if (!isAuthenticated) return;
     saveParticipant(p);
     saveEventParticipant({ eventId, participantId: p.id, present: true });
     reload();
   };
 
   const handleImportParticipant = (p: Participant) => {
+    if (!isAuthenticated) return;
     saveEventParticipant({ eventId, participantId: p.id, present: true });
     setImportModal(false);
     reload();
   };
 
   const handleRemoveParticipant = (participantId: string) => {
+    if (!isAuthenticated) return;
     if (!confirm('Remove this participant from the event?')) return;
     removeEventParticipant(eventId, participantId);
     reload();
   };
 
   const handleAttendanceToggle = (participantId: string, present: boolean) => {
+    if (!isAuthenticated) return;
     updateEventParticipant({ eventId, participantId, present });
     reload();
   };
 
   const handleGenerateMatch = () => {
+    if (!isAuthenticated) return;
     if (!event) return;
     const minPlayers = event.matchType === 'double' ? 4 : 2;
     if (presentIds.length < minPlayers) {
@@ -132,6 +145,7 @@ export default function EventDetailContent() {
   };
 
   const handleScoreUpdate = (matchId: string, scoreA: number, scoreB: number) => {
+    if (!isAuthenticated) return;
     const m = matches.find((x) => x.id === matchId);
     if (!m) return;
     updateMatch({ ...m, scoreA, scoreB, status: 'completed' });
@@ -139,6 +153,7 @@ export default function EventDetailContent() {
   };
 
   const handleDeleteMatch = (matchId: string) => {
+    if (!isAuthenticated) return;
     if (!confirm('Delete this match?')) return;
     deleteMatch(matchId);
     reload();
@@ -177,20 +192,27 @@ export default function EventDetailContent() {
     try { return format(new Date(event.date), 'MMMM d, yyyy'); } catch { return event.date; }
   })();
 
-  const tabs: { key: Tab; label: string; emoji: string }[] = [
-    { key: 'participants', label: 'Players', emoji: '👥' },
-    { key: 'attendance', label: 'Attendance', emoji: '✅' },
-    { key: 'matches', label: 'Matches', emoji: '🎾' },
-    { key: 'scoreboard', label: 'Scoreboard', emoji: '🏆' },
-  ];
+  const tabs: { key: Tab; label: string; emoji: string }[] = isAuthenticated
+    ? [
+        { key: 'participants', label: 'Players', emoji: '👥' },
+        { key: 'attendance', label: 'Attendance', emoji: '✅' },
+        { key: 'matches', label: 'Matches', emoji: '🎾' },
+        { key: 'scoreboard', label: 'Scoreboard', emoji: '🏆' },
+      ]
+    : [
+        { key: 'matches', label: 'Matches', emoji: '🎾' },
+        { key: 'scoreboard', label: 'Scoreboard', emoji: '🏆' },
+      ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700">
       {/* Header */}
       <header className="px-4 pt-8 pb-4">
-        <Link href="/" className="text-green-200 hover:text-white text-sm flex items-center gap-1 mb-3">
-          ← All Events
-        </Link>
+        {isAuthenticated && (
+          <Link href="/" className="text-green-200 hover:text-white text-sm flex items-center gap-1 mb-3">
+            ← All Events
+          </Link>
+        )}
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-extrabold text-white leading-tight">{event.name}</h1>
@@ -201,6 +223,11 @@ export default function EventDetailContent() {
               {event.matchType === 'double' ? '👥 Doubles' : '👤 Singles'}
             </span>
           </div>
+          {isAuthenticated && (
+            <div className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-green-50">
+              {user?.username}
+            </div>
+          )}
         </div>
       </header>
 
@@ -297,21 +324,23 @@ export default function EventDetailContent() {
         {/* MATCHES TAB */}
         {tab === 'matches' && (
           <div className="max-w-2xl mx-auto space-y-4">
-            <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-              <h2 className="font-bold text-gray-800 mb-3">Generate Match</h2>
-              <p className="text-xs text-gray-500 mb-3">
-                Americano: Ensures fair play count — players with fewer matches go first.
-              </p>
-              <button
-                onClick={handleGenerateMatch}
-                className="w-full py-2.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors"
-              >
-                🎾 Generate Next Match
-              </button>
-              <p className="text-xs text-gray-400 mt-2 text-center">
-                {presentIds.length} present · {matches.length} matches generated
-              </p>
-            </div>
+            {isAuthenticated && (
+              <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                <h2 className="font-bold text-gray-800 mb-3">Generate Match</h2>
+                <p className="text-xs text-gray-500 mb-3">
+                  Americano: Ensures fair play count — players with fewer matches go first.
+                </p>
+                <button
+                  onClick={handleGenerateMatch}
+                  className="w-full py-2.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors"
+                >
+                  🎾 Generate Next Match
+                </button>
+                <p className="text-xs text-gray-400 mt-2 text-center">
+                  {presentIds.length} present · {matches.length} matches generated
+                </p>
+              </div>
+            )}
 
             {matches.length === 0 ? (
               <div className="text-center py-8 text-gray-400">
@@ -327,6 +356,7 @@ export default function EventDetailContent() {
                     participants={allParticipants}
                     onScoreUpdate={handleScoreUpdate}
                     onDelete={handleDeleteMatch}
+                    readOnly={!isAuthenticated}
                   />
                 ))}
               </div>

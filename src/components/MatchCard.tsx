@@ -8,6 +8,7 @@ interface MatchCardProps {
   participants: Participant[];
   onScoreUpdate: (matchId: string, scoreA: number, scoreB: number) => void;
   onDelete: (matchId: string) => void;
+  readOnly?: boolean;
 }
 
 export default function MatchCard({
@@ -15,6 +16,7 @@ export default function MatchCard({
   participants,
   onScoreUpdate,
   onDelete,
+  readOnly = false,
 }: MatchCardProps) {
   const [editing, setEditing] = useState(false);
   const [scoreA, setScoreA] = useState(match.scoreA?.toString() ?? '');
@@ -46,12 +48,14 @@ export default function MatchCard({
           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusColor}`}>
             {match.status}
           </span>
-          <button
-            onClick={() => onDelete(match.id)}
-            className="text-xs text-red-400 hover:text-red-600"
-          >
-            🗑
-          </button>
+            {!readOnly && (
+              <button
+                onClick={() => onDelete(match.id)}
+                className="text-xs text-red-400 hover:text-red-600"
+              >
+                🗑
+              </button>
+            )}
         </div>
       </div>
 
@@ -77,7 +81,7 @@ export default function MatchCard({
         </div>
       </div>
 
-      {editing ? (
+      {!readOnly && editing ? (
         <div className="mt-4 flex items-center gap-3 justify-center">
           <input
             type="number"
@@ -109,7 +113,7 @@ export default function MatchCard({
             ✕
           </button>
         </div>
-      ) : (
+      ) : !readOnly ? (
         <div className="mt-3 flex justify-center">
           <button
             onClick={() => {
@@ -122,7 +126,7 @@ export default function MatchCard({
             {match.status === 'completed' ? '✏️ Edit Score' : '📝 Enter Score'}
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

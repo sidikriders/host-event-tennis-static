@@ -1,19 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 import { Event } from '@/types';
 import { saveEvent } from '@/lib/storage';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function NewEventPage() {
   const router = useRouter();
+  const { isAuthenticated, isReady } = useAuth();
   const [name, setName] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [location, setLocation] = useState('');
   const [matchType, setMatchType] = useState<'single' | 'double'>('double');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (!isAuthenticated) {
+      router.replace('/login?next=/events/new');
+    }
+  }, [isAuthenticated, isReady, router]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +41,14 @@ export default function NewEventPage() {
     saveEvent(event);
     router.push(`/events/detail?id=${event.id}`);
   };
+
+  if (!isReady || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 flex items-center justify-center">
+        <div className="text-green-100 text-lg font-semibold">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700">

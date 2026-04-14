@@ -2,27 +2,59 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Event } from '@/types';
 import { getEvents, deleteEvent } from '@/lib/storage';
 import EventCard from '@/components/EventCard';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function HomePage() {
+  const router = useRouter();
+  const { isAuthenticated, isReady, logout, user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    if (!isReady) return;
+    if (!isAuthenticated) {
+      router.replace('/login?next=/');
+      return;
+    }
+
     setEvents(getEvents());
     setLoaded(true);
-  }, []);
+  }, [isAuthenticated, isReady, router]);
 
   const handleDelete = (id: string) => {
     deleteEvent(id);
     setEvents(getEvents());
   };
 
+  if (!isReady || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 flex items-center justify-center">
+        <div className="text-green-100 text-lg font-semibold">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700">
       <header className="px-4 pt-10 pb-6 text-center">
+        <div className="max-w-2xl mx-auto flex items-center justify-end mb-5">
+          <div className="inline-flex items-center gap-3 rounded-full bg-white/10 px-4 py-2 text-sm text-green-50">
+            <span>Signed in as {user?.username}</span>
+            <button
+              onClick={() => {
+                logout();
+                router.replace('/login');
+              }}
+              className="font-semibold text-white hover:text-green-200"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
         <div className="text-5xl mb-3">🎾</div>
         <h1 className="text-3xl font-extrabold text-white tracking-tight">Tennis Event Host</h1>
         <p className="text-green-200 mt-1 text-sm">Manage Americano &amp; Mexicano events</p>
