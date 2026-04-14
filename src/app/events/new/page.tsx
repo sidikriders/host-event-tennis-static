@@ -16,6 +16,7 @@ export default function NewEventPage() {
   const [location, setLocation] = useState('');
   const [matchType, setMatchType] = useState<'single' | 'double'>('double');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isReady) return;
@@ -24,10 +25,11 @@ export default function NewEventPage() {
     }
   }, [isAuthenticated, isReady, router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !date || !location.trim()) return;
     setSubmitting(true);
+    setError(null);
 
     const event: Event = {
       id: uuidv4(),
@@ -38,8 +40,13 @@ export default function NewEventPage() {
       createdAt: new Date().toISOString(),
     };
 
-    saveEvent(event);
-    router.push(`/events/detail?id=${event.id}`);
+    try {
+      await saveEvent(event);
+      router.push(`/events/detail?id=${event.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create event.');
+      setSubmitting(false);
+    }
   };
 
   if (!isReady || !isAuthenticated) {
@@ -64,6 +71,12 @@ export default function NewEventPage() {
           onSubmit={handleSubmit}
           className="bg-white rounded-2xl shadow-xl p-6 space-y-5 mt-2"
         >
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
               Event Name *

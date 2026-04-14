@@ -51,34 +51,50 @@ export default function EventDetailContent() {
   const [tab, setTab] = useState<Tab>('participants');
   const [importModal, setImportModal] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const scoreTableRef = useRef<HTMLDivElement>(null);
   const championsRef = useRef<HTMLDivElement>(null);
 
-  const reload = useCallback(() => {
-    if (!eventId) { router.push('/'); return; }
-    const ev = getEvent(eventId);
-    if (!ev) { router.push('/'); return; }
-    setEvent(ev);
+  const reload = useCallback(async () => {
+    if (!eventId) {
+      router.push('/');
+      return;
+    }
 
-    const eps = getEventParticipants(eventId);
-    setEventParticipants(eps);
+    try {
+      setError(null);
+      const ev = await getEvent(eventId);
+      if (!ev) {
+        router.push('/');
+        return;
+      }
+      setEvent(ev);
 
-    const allP = getParticipants();
-    setAllParticipants(allP);
+      const eps = getEventParticipants(eventId);
+      setEventParticipants(eps);
 
-    const ms = getMatches(eventId);
-    setMatches(ms);
+      const allP = getParticipants();
+      setAllParticipants(allP);
 
-    const epParticipants = eps
-      .map((ep) => allP.find((p) => p.id === ep.participantId))
-      .filter(Boolean) as Participant[];
-    setStats(calculateScoreTable(epParticipants, ms));
+      const ms = getMatches(eventId);
+      setMatches(ms);
 
-    setLoaded(true);
+      const epParticipants = eps
+        .map((ep) => allP.find((p) => p.id === ep.participantId))
+        .filter(Boolean) as Participant[];
+      setStats(calculateScoreTable(epParticipants, ms));
+
+      setLoaded(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load event.');
+      setLoaded(true);
+    }
   }, [eventId, router]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
   useEffect(() => {
     if (!isAuthenticated && (tab === 'participants' || tab === 'attendance')) {
@@ -225,7 +241,7 @@ export default function EventDetailContent() {
           </div>
           {isAuthenticated && (
             <div className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-green-50">
-              {user?.username}
+              {user?.display_name ?? user?.email}
             </div>
           )}
         </div>
@@ -250,6 +266,12 @@ export default function EventDetailContent() {
 
       {/* Tab content */}
       <main className="bg-white min-h-[60vh] px-4 pb-24 pt-5">
+        {error && (
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
         {/* PARTICIPANTS TAB */}
         {tab === 'participants' && (
           <div className="max-w-2xl mx-auto space-y-4">

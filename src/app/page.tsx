@@ -13,6 +13,7 @@ export default function HomePage() {
   const { isAuthenticated, isReady, logout, user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isReady) return;
@@ -21,13 +22,41 @@ export default function HomePage() {
       return;
     }
 
-    setEvents(getEvents());
-    setLoaded(true);
+    let cancelled = false;
+
+    const loadEvents = async () => {
+      try {
+        setError(null);
+        const data = await getEvents();
+        if (!cancelled) {
+          setEvents(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load events.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoaded(true);
+        }
+      }
+    };
+
+    loadEvents();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated, isReady, router]);
 
-  const handleDelete = (id: string) => {
-    deleteEvent(id);
-    setEvents(getEvents());
+  const handleDelete = async (id: string) => {
+    try {
+      setError(null);
+      await deleteEvent(id);
+      setEvents((current) => current.filter((event) => event.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete event.');
+    }
   };
 
   if (!isReady || !isAuthenticated) {
@@ -69,6 +98,12 @@ export default function HomePage() {
             <span className="text-xl">+</span> Create New Event
           </Link>
         </div>
+
+        {error && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
         {!loaded ? (
           <div className="text-center text-green-200 py-10">Loading...</div>

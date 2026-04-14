@@ -1,4 +1,14 @@
 import { Event, Participant, EventParticipant, Match } from '@/types';
+import { getSupabaseClient } from '@/lib/supabase';
+
+type EventRow = {
+  id: string;
+  name: string;
+  date: string;
+  location: string;
+  match_type: 'single' | 'double';
+  created_at: string;
+};
 
 const KEYS = {
   EVENTS: 'tennis_events',
@@ -21,27 +31,75 @@ function save<T>(key: string, data: T[]): void {
   localStorage.setItem(key, JSON.stringify(data));
 }
 
+function mapEventRow(row: EventRow): Event {
+  return {
+    id: row.id,
+    name: row.name,
+    date: row.date,
+    location: row.location,
+    matchType: row.match_type,
+    createdAt: row.created_at,
+  };
+}
+
+function mapEventToRow(event: Event): EventRow {
+  return {
+    id: event.id,
+    name: event.name,
+    date: event.date,
+    location: event.location,
+    match_type: event.matchType,
+    created_at: event.createdAt,
+  };
+}
+
 // Events
-export function getEvents(): Event[] {
-  return load<Event>(KEYS.EVENTS).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+export async function getEvents(): Promise<Event[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('events')
+    .select('id, name, date, location, match_type, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to load events: ${error.message}`);
+  }
+
+  return (data ?? []).map(mapEventRow);
 }
 
-export function getEvent(id: string): Event | undefined {
-  return load<Event>(KEYS.EVENTS).find((e) => e.id === id);
+export async function getEvent(id: string): Promise<Event | null> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('events')
+    .select('id, name, date, location, match_type, created_at')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load event: ${error.message}`);
+  }
+
+  return data ? mapEventRow(data) : null;
 }
 
-export function saveEvent(event: Event): void {
-  const events = load<Event>(KEYS.EVENTS);
-  const idx = events.findIndex((e) => e.id === event.id);
-  if (idx >= 0) events[idx] = event;
-  else events.push(event);
-  save(KEYS.EVENTS, events);
+export async function saveEvent(event: Event): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from('events').upsert(mapEventToRow(event));
+
+  if (error) {
+    throw new Error(`Failed to save event: ${error.message}`);
+  }
 }
 
-export function deleteEvent(id: string): void {
-  save(KEYS.EVENTS, load<Event>(KEYS.EVENTS).filter((e) => e.id !== id));
+export async function deleteEvent(id: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from('events').delete().eq('id', id);
+
+  if (error) {
+    throw new Error(`Failed to delete event: ${error.message}`);
+  }
+
   // cascade delete
   save(
     KEYS.EVENT_PARTICIPANTS,
@@ -108,7 +166,11 @@ export function removeEventParticipant(eventId: string, participantId: string): 
 export function getMatches(eventId: string): Match[] {
   return load<Match>(KEYS.MATCHES)
     .filter((m) => m.eventId === eventId)
-    .sort((a, b) => a.round - b.round || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    .sort(
+      (a, b) =>
+        a.round - b.round ||
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
 }
 
 export function saveMatch(match: Match): void {
