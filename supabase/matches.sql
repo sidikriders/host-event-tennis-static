@@ -1,6 +1,6 @@
 create table if not exists public.matches (
   id uuid primary key,
-  event_id uuid not null references public.events(id) on delete cascade,
+  event_id uuid not null references public.events(id) on delete restrict,
   round integer not null check (round > 0),
   team_a text[] not null,
   team_b text[] not null,
@@ -9,6 +9,13 @@ create table if not exists public.matches (
   status text not null check (status in ('pending', 'ongoing', 'completed')),
   created_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.matches
+drop constraint if exists matches_event_id_fkey;
+
+alter table public.matches
+add constraint matches_event_id_fkey
+foreign key (event_id) references public.events(id) on delete restrict;
 
 create index if not exists matches_event_id_idx on public.matches(event_id);
 create index if not exists matches_event_round_idx on public.matches(event_id, round);

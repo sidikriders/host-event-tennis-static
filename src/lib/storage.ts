@@ -166,7 +166,48 @@ export async function saveEvent(event: Event): Promise<void> {
   }
 }
 
+export interface EventDependencySummary {
+  participantCount: number;
+  matchCount: number;
+}
+
+export async function getEventDependencySummary(
+  eventId: string
+): Promise<EventDependencySummary> {
+  const supabase = getSupabaseClient();
+  const [{ count: participantCount, error: participantError }, { count: matchCount, error: matchError }] =
+    await Promise.all([
+      supabase
+        .from('event_participants')
+        .select('*', { count: 'exact', head: true })
+        .eq('event_id', eventId),
+      supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('event_id', eventId),
+    ]);
+
+  if (participantError) {
+    throw new Error(`Failed to load event participant count: ${participantError.message}`);
+  }
+
+  if (matchError) {
+    throw new Error(`Failed to load event match count: ${matchError.message}`);
+  }
+
+  return {
+    participantCount: participantCount ?? 0,
+    matchCount: matchCount ?? 0,
+  };
+}
+
 export async function deleteEvent(id: string): Promise<void> {
+  const dependencySummary = await getEventDependencySummary(id);
+
+  if (dependencySummary.participantCount > 0 || dependencySummary.matchCount > 0) {
+    throw new Error('Cannot delete event because it already has participants or matches.');
+  }
+
   const supabase = getSupabaseClient();
   const { error } = await supabase.from('events').delete().eq('id', id);
 

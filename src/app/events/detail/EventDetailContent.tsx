@@ -370,8 +370,16 @@ export default function EventDetailContent() {
             </span>
           </div>
           {isAuthenticated && (
-            <div className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-green-50">
-              {user?.display_name ?? user?.email}
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/events/edit?id=${event.id}`}
+                className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-green-800 transition-colors hover:bg-green-50"
+              >
+                ✏️ Edit Event
+              </Link>
+              <div className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-green-50">
+                {user?.display_name ?? user?.email}
+              </div>
             </div>
           )}
         </div>

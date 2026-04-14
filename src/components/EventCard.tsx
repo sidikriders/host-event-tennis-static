@@ -6,10 +6,12 @@ import { format } from 'date-fns';
 
 interface EventCardProps {
   event: Event;
+  canDelete: boolean;
+  deleteReason?: string;
   onDelete: (id: string) => void;
 }
 
-export default function EventCard({ event, onDelete }: EventCardProps) {
+export default function EventCard({ event, canDelete, deleteReason, onDelete }: EventCardProps) {
   const formattedDate = (() => {
     try {
       return format(new Date(event.date), 'MMM d, yyyy');
@@ -38,13 +40,21 @@ export default function EventCard({ event, onDelete }: EventCardProps) {
           </span>
         </div>
       </Link>
-      <div className="px-5 pb-4 flex justify-end">
+      <div className="px-5 pb-4 flex items-center justify-between gap-3">
+        <Link
+          href={`/events/edit?id=${event.id}`}
+          className="text-xs font-semibold text-green-700 transition-colors hover:text-green-900"
+        >
+          ✏️ Edit
+        </Link>
         <button
           onClick={(e) => {
             e.stopPropagation();
             if (confirm(`Delete event "${event.name}"?`)) onDelete(event.id);
           }}
-          className="text-xs text-red-400 hover:text-red-600 transition-colors"
+          disabled={!canDelete}
+          title={deleteReason}
+          className="text-xs text-red-400 hover:text-red-600 transition-colors disabled:cursor-not-allowed disabled:text-red-200"
         >
           🗑 Delete
         </button>

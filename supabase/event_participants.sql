@@ -1,9 +1,16 @@
 create table if not exists public.event_participants (
-  event_id uuid not null references public.events(id) on delete cascade,
+  event_id uuid not null references public.events(id) on delete restrict,
   participant_id uuid not null references public.participants(id) on delete cascade,
   present boolean not null default true,
   primary key (event_id, participant_id)
 );
+
+alter table public.event_participants
+drop constraint if exists event_participants_event_id_fkey;
+
+alter table public.event_participants
+add constraint event_participants_event_id_fkey
+foreign key (event_id) references public.events(id) on delete restrict;
 
 create index if not exists event_participants_event_id_idx on public.event_participants(event_id);
 create index if not exists event_participants_participant_id_idx on public.event_participants(participant_id);

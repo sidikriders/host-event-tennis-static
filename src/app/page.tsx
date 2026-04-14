@@ -4,14 +4,27 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Event } from '@/types';
-import { getEvents, deleteEvent } from '@/lib/storage';
+import {
+  getEvents,
+  deleteEvent,
+  getEventDependencySummary,
+} from '@/lib/storage';
 import EventCard from '@/components/EventCard';
 import { useAuth } from '@/components/AuthProvider';
+
+type EventDependencyState = Record<
+  string,
+  {
+    canDelete: boolean;
+    deleteReason?: string;
+  }
+>;
 
 export default function HomePage() {
   const router = useRouter();
   const { isAuthenticated, isReady, logout, user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
+  const [eventDependencies, setEventDependencies] = useState<EventDependencyState>({});
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,8 +41,26 @@ export default function HomePage() {
       try {
         setError(null);
         const data = await getEvents();
+        const dependencyEntries = await Promise.all(
+          data.map(async (event) => {
+            const summary = await getEventDependencySummary(event.id);
+            const hasDependencies = summary.participantCount > 0 || summary.matchCount > 0;
+
+            return [
+              event.id,
+              {
+                canDelete: !hasDependencies,
+                deleteReason: hasDependencies
+                  ? 'Cannot delete an event that already has participants or matches.'
+                  : undefined,
+              },
+            ] as const;
+          })
+        );
+
         if (!cancelled) {
           setEvents(data);
+          setEventDependencies(Object.fromEntries(dependencyEntries));
         }
       } catch (err) {
         if (!cancelled) {
@@ -54,6 +85,11 @@ export default function HomePage() {
       setError(null);
       await deleteEvent(id);
       setEvents((current) => current.filter((event) => event.id !== id));
+      setEventDependencies((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete event.');
     }
@@ -125,7 +161,13 @@ export default function HomePage() {
               Your Events ({events.length})
             </h2>
             {events.map((event) => (
-              <EventCard key={event.id} event={event} onDelete={handleDelete} />
+              <EventCard
+                key={event.id}
+                event={event}
+                canDelete={eventDependencies[event.id]?.canDelete ?? false}
+                deleteReason={eventDependencies[event.id]?.deleteReason}
+                onDelete={handleDelete}
+              />
             ))}
           </div>
         )}
