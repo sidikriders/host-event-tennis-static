@@ -20,25 +20,18 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, isReady, nextPath, router]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const success = login(username, password);
+    setError(''); // Clear previous errors
 
-    if (!success) {
-      setError('Invalid username or password.');
+    // Note: I renamed 'username' to 'email' here to match Supabase defaults
+    const { error } = await login(username, password);
+
+    if (error) {
+      setError(error.message); // Supabase provides descriptive error messages
       return;
     }
-
-    router.replace(nextPath);
   };
-
-  if (!isReady || isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 flex items-center justify-center px-4">
-        <div className="text-white text-lg font-semibold">Loading...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-950 via-green-800 to-green-600 flex items-center justify-center px-4 py-10">
@@ -56,7 +49,7 @@ export default function LoginPage() {
               className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              placeholder="admin1"
+              placeholder="username"
               autoComplete="username"
               required
             />
@@ -69,7 +62,7 @@ export default function LoginPage() {
               className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="mabartennis"
+              placeholder="password"
               autoComplete="current-password"
               required
             />
@@ -83,13 +76,6 @@ export default function LoginPage() {
           >
             Login
           </button>
-
-          <div className="rounded-2xl bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-900">
-            <p className="font-semibold mb-1">Starter accounts</p>
-            <p>admin1 / mabartennis</p>
-            <p>admin2 / mabartennis</p>
-            <p>admin3 / mabartennis</p>
-          </div>
         </form>
       </div>
     </div>
