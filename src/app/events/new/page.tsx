@@ -26,6 +26,7 @@ export default function NewEventPage() {
     name: string;
     date: string;
     location: string;
+    courts: string[];
     matchType: 'single' | 'double';
   }) => {
     setSubmitting(true);
@@ -36,6 +37,7 @@ export default function NewEventPage() {
       name: values.name,
       date: values.date,
       location: values.location,
+      courts: values.courts,
       matchType: values.matchType,
       createdAt: new Date().toISOString(),
     };
@@ -72,6 +74,7 @@ export default function NewEventPage() {
             name: '',
             date: new Date().toISOString().split('T')[0],
             location: '',
+            courts: ['Court 1'],
             matchType: 'double',
           }}
           submitLabel="🎾 Create Event"

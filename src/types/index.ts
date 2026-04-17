@@ -3,6 +3,7 @@ export interface Event {
   name: string;
   date: string;
   location: string;
+  courts: string[];
   matchType: 'single' | 'double';
   createdAt: string;
 }
@@ -26,6 +27,7 @@ export interface Match {
   id: string;
   eventId: string;
   round: number;
+  court: string;
   teamA: string[];
   teamB: string[];
   scoreA: number | null;

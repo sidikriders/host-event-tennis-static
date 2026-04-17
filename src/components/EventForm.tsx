@@ -9,6 +9,7 @@ interface EventFormProps {
     name: string;
     date: string;
     location: string;
+    courts: string[];
     matchType: MatchType;
   };
   submitLabel: string;
@@ -19,6 +20,7 @@ interface EventFormProps {
     name: string;
     date: string;
     location: string;
+    courts: string[];
     matchType: MatchType;
   }) => Promise<void>;
 }
@@ -34,7 +36,31 @@ export default function EventForm({
   const [name, setName] = useState(initialValues.name);
   const [date, setDate] = useState(initialValues.date);
   const [location, setLocation] = useState(initialValues.location);
+  const [courts, setCourts] = useState(
+    initialValues.courts.length > 0 ? initialValues.courts : ['Court 1']
+  );
   const [matchType, setMatchType] = useState<MatchType>(initialValues.matchType);
+
+  const updateCourt = (index: number, value: string) => {
+    setCourts((currentCourts) => currentCourts.map((court, courtIndex) => {
+      if (courtIndex !== index) {
+        return court;
+      }
+
+      return value;
+    }));
+  };
+
+  const addCourt = () => {
+    setCourts((currentCourts) => [...currentCourts, `Court ${currentCourts.length + 1}`]);
+  };
+
+  const removeCourt = (index: number) => {
+    setCourts((currentCourts) => {
+      const nextCourts = currentCourts.filter((_, courtIndex) => courtIndex !== index);
+      return nextCourts.length > 0 ? nextCourts : ['Court 1'];
+    });
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -42,10 +68,16 @@ export default function EventForm({
       return;
     }
 
+    const normalizedCourts = courts.map((court) => court.trim()).filter(Boolean);
+    if (normalizedCourts.length === 0) {
+      return;
+    }
+
     await onSubmit({
       name: name.trim(),
       date,
       location: location.trim(),
+      courts: normalizedCourts,
       matchType,
     });
   };
@@ -91,6 +123,43 @@ export default function EventForm({
           placeholder="e.g. Court 1, City Club"
           required
         />
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <label className="block text-sm font-semibold text-gray-700">Courts *</label>
+          <button
+            type="button"
+            onClick={addCourt}
+            className="text-sm font-semibold text-green-700 transition-colors hover:text-green-900"
+          >
+            + Add Court
+          </button>
+        </div>
+        <div className="space-y-3">
+          {courts.map((court, index) => (
+            <div key={`${index}-${court}`} className="flex items-center gap-3">
+              <input
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
+                value={court}
+                onChange={(event) => updateCourt(index, event.target.value)}
+                placeholder={`Court ${index + 1}`}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => removeCourt(index)}
+                disabled={courts.length === 1}
+                className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          Matches can be assigned to any of these court names.
+        </p>
       </div>
 
       <div>

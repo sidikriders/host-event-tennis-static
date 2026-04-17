@@ -35,6 +35,7 @@ export default function EventCard({
             <h3 className="text-lg font-bold text-gray-900 truncate">{event.name}</h3>
             <p className="text-sm text-gray-500 mt-1">📅 {formattedDate}</p>
             <p className="text-sm text-gray-500">📍 {event.location}</p>
+            <p className="text-sm text-gray-500">🎾 {event.courts.length} court{event.courts.length === 1 ? '' : 's'}</p>
             <p className="text-sm text-gray-500">👥 {participantCount} player{participantCount === 1 ? '' : 's'}</p>
           </div>
           <span

@@ -68,6 +68,7 @@ function EditEventPageContent() {
     name: string;
     date: string;
     location: string;
+    courts: string[];
     matchType: 'single' | 'double';
   }) => {
     if (!event) return;
@@ -81,6 +82,7 @@ function EditEventPageContent() {
         name: values.name,
         date: values.date,
         location: values.location,
+        courts: values.courts,
         matchType: values.matchType,
       });
       router.push(`/events/detail?id=${event.id}`);
@@ -117,6 +119,7 @@ function EditEventPageContent() {
             name: event.name,
             date: event.date,
             location: event.location,
+            courts: event.courts,
             matchType: event.matchType,
           }}
           submitLabel="Save Changes"

@@ -6,6 +6,7 @@ import { Match, Participant } from '@/types';
 
 export interface MatchEditorPayload {
   round: number;
+  court: string;
   teamA: string[];
   teamB: string[];
   status: Match['status'];
@@ -15,6 +16,7 @@ export interface MatchEditorPayload {
 
 interface MatchEditorModalProps {
   matchType: 'single' | 'double';
+  courts: string[];
   participants: Participant[];
   nextRound: number;
   match?: Match | null;
@@ -29,6 +31,7 @@ function buildSelections(team: string[] | undefined, size: number) {
 
 export default function MatchEditorModal({
   matchType,
+  courts,
   participants,
   nextRound,
   match,
@@ -37,7 +40,9 @@ export default function MatchEditorModal({
   onSave,
 }: MatchEditorModalProps) {
   const teamSize = matchType === 'single' ? 1 : 2;
+  const availableCourts = courts.length > 0 ? courts : ['Court 1'];
   const [round, setRound] = useState((match?.round ?? nextRound).toString());
+  const [court, setCourt] = useState(match?.court ?? availableCourts[0]);
   const [teamA, setTeamA] = useState<string[]>(() => buildSelections(match?.teamA, teamSize));
   const [teamB, setTeamB] = useState<string[]>(() => buildSelections(match?.teamB, teamSize));
   const [status, setStatus] = useState<Match['status']>(match?.status ?? 'pending');
@@ -47,13 +52,14 @@ export default function MatchEditorModal({
 
   useEffect(() => {
     setRound((match?.round ?? nextRound).toString());
+    setCourt(match?.court ?? availableCourts[0]);
     setTeamA(buildSelections(match?.teamA, teamSize));
     setTeamB(buildSelections(match?.teamB, teamSize));
     setStatus(match?.status ?? 'pending');
     setScoreA(match?.scoreA?.toString() ?? '');
     setScoreB(match?.scoreB?.toString() ?? '');
     setError(null);
-  }, [match, nextRound, teamSize]);
+  }, [availableCourts, match, nextRound, teamSize]);
 
   const selectedIds = [...teamA, ...teamB].filter(Boolean);
 
@@ -88,6 +94,11 @@ export default function MatchEditorModal({
     const parsedRound = Number.parseInt(round, 10);
     if (!Number.isInteger(parsedRound) || parsedRound < 1) {
       setError('Round must be 1 or higher.');
+      return;
+    }
+
+    if (!court.trim()) {
+      setError('Court is required.');
       return;
     }
 
@@ -130,6 +141,7 @@ export default function MatchEditorModal({
     setError(null);
     await onSave({
       round: parsedRound,
+      court: court.trim(),
       teamA: normalizedTeamA,
       teamB: normalizedTeamB,
       status,
@@ -170,7 +182,7 @@ export default function MatchEditorModal({
               </div>
             )}
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <label className="block">
                 <span className="mb-1 block text-sm font-semibold text-gray-700">Round</span>
                 <input
@@ -180,6 +192,21 @@ export default function MatchEditorModal({
                   onChange={(event) => setRound(event.target.value)}
                   className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
                 />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-gray-700">Court</span>
+                <select
+                  value={court}
+                  onChange={(event) => setCourt(event.target.value)}
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
+                >
+                  {availableCourts.map((courtName) => (
+                    <option key={courtName} value={courtName}>
+                      {courtName}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="block">

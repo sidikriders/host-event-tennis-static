@@ -1,6 +1,32 @@
 import { Match, PlayerStats } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
+function normalizeCourts(courts: string[]): string[] {
+  const nextCourts = courts.map((court) => court.trim()).filter(Boolean);
+  return nextCourts.length > 0 ? nextCourts : ['Court 1'];
+}
+
+function getCourtForRound(courts: string[], existingMatches: Match[], round: number): string {
+  const availableCourts = normalizeCourts(courts);
+  const usageByCourt = new Map(availableCourts.map((court) => [court, 0]));
+
+  for (const match of existingMatches) {
+    if (match.round !== round) {
+      continue;
+    }
+
+    usageByCourt.set(match.court, (usageByCourt.get(match.court) ?? 0) + 1);
+  }
+
+  return availableCourts.reduce((selectedCourt, court) => {
+    if ((usageByCourt.get(court) ?? 0) < (usageByCourt.get(selectedCourt) ?? 0)) {
+      return court;
+    }
+
+    return selectedCourt;
+  }, availableCourts[0]);
+}
+
 /**
  * Americano: pick players with the fewest matches played first,
  * avoid re-pairing players who were on the same team in the previous round.
@@ -9,7 +35,8 @@ export function generateAmericanoMatch(
   presentIds: string[],
   existingMatches: Match[],
   eventId: string,
-  matchType: 'single' | 'double'
+  matchType: 'single' | 'double',
+  courts: string[]
 ): Match | null {
   const teamSize = matchType === 'single' ? 1 : 2;
   const required = teamSize * 2;
@@ -97,6 +124,7 @@ export function generateAmericanoMatch(
     id: uuidv4(),
     eventId,
     round,
+    court: getCourtForRound(courts, existingMatches, round),
     teamA,
     teamB,
     scoreA: null,
@@ -115,7 +143,8 @@ export function generateMexicanoMatch(
   existingMatches: Match[],
   stats: PlayerStats[],
   eventId: string,
-  matchType: 'single' | 'double'
+  matchType: 'single' | 'double',
+  courts: string[]
 ): Match | null {
   const teamSize = matchType === 'single' ? 1 : 2;
   const required = teamSize * 2;
@@ -154,6 +183,7 @@ export function generateMexicanoMatch(
     id: uuidv4(),
     eventId,
     round,
+    court: getCourtForRound(courts, existingMatches, round),
     teamA,
     teamB,
     scoreA: null,

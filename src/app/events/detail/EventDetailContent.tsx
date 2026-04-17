@@ -182,7 +182,7 @@ export default function EventDetailContent() {
     }
 
     let match: Match | null = null;
-    match = generateAmericanoMatch(presentIds, matches, eventId, event.matchType);
+    match = generateAmericanoMatch(presentIds, matches, eventId, event.matchType, event.courts);
 
     if (match) {
       try {
@@ -235,6 +235,7 @@ export default function EventDetailContent() {
         await updateMatch({
           ...editingMatch,
           round: payload.round,
+          court: payload.court,
           teamA: payload.teamA,
           teamB: payload.teamB,
           status: payload.status,
@@ -246,6 +247,7 @@ export default function EventDetailContent() {
           id: uuidv4(),
           eventId,
           round: payload.round,
+          court: payload.court,
           teamA: payload.teamA,
           teamB: payload.teamB,
           scoreA: payload.scoreA,
@@ -363,6 +365,7 @@ export default function EventDetailContent() {
           <div>
             <h1 className="text-2xl font-extrabold text-white leading-tight">{event.name}</h1>
             <p className="text-green-200 text-sm mt-0.5">📅 {formattedDate} · 📍 {event.location}</p>
+            <p className="text-green-100 text-xs mt-1">🎾 Courts: {event.courts.join(' · ')}</p>
             <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
               event.matchType === 'double' ? 'bg-green-400 text-green-900' : 'bg-blue-300 text-blue-900'
             }`}>
@@ -506,7 +509,7 @@ export default function EventDetailContent() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-400 mt-2 text-center">
-                  {presentIds.length} present · {matches.length} matches generated
+                  {presentIds.length} present · {event.courts.length} courts configured · {matches.length} matches generated
                 </p>
               </div>
             )}
@@ -613,6 +616,7 @@ export default function EventDetailContent() {
       {matchModalOpen && event && (
         <MatchEditorModal
           matchType={event.matchType}
+          courts={event.courts}
           participants={matchEditorParticipants}
           nextRound={nextRound}
           match={editingMatch}

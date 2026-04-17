@@ -45,7 +45,10 @@ export default function MatchCard({
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-gray-400">Round {match.round}</span>
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-400">
+          <span>Round {match.round}</span>
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-500">{match.court}</span>
+        </div>
         <div className="flex items-center gap-2">
           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusColor}`}>
             {match.status}

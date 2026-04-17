@@ -6,6 +6,7 @@ type EventRow = {
   name: string;
   date: string;
   location: string;
+  courts: string[] | null;
   match_type: 'single' | 'double';
   created_at: string;
 };
@@ -14,6 +15,7 @@ type MatchRow = {
   id: string;
   event_id: string;
   round: number;
+  court: string | null;
   team_a: string[];
   team_b: string[];
   score_a: number | null;
@@ -37,12 +39,23 @@ type EventParticipantRow = {
   present: boolean;
 };
 
+function normalizeCourts(courts: string[] | null | undefined): string[] {
+  const nextCourts = (courts ?? []).map((court) => court.trim()).filter(Boolean);
+  return nextCourts.length > 0 ? nextCourts : ['Court 1'];
+}
+
+function normalizeCourt(court: string | null | undefined): string {
+  const nextCourt = court?.trim();
+  return nextCourt ? nextCourt : 'Court 1';
+}
+
 function mapEventRow(row: EventRow): Event {
   return {
     id: row.id,
     name: row.name,
     date: row.date,
     location: row.location,
+    courts: normalizeCourts(row.courts),
     matchType: row.match_type,
     createdAt: row.created_at,
   };
@@ -54,6 +67,7 @@ function mapEventToRow(event: Event): EventRow {
     name: event.name,
     date: event.date,
     location: event.location,
+    courts: normalizeCourts(event.courts),
     match_type: event.matchType,
     created_at: event.createdAt,
   };
@@ -64,6 +78,7 @@ function mapMatchRow(row: MatchRow): Match {
     id: row.id,
     eventId: row.event_id,
     round: row.round,
+    court: normalizeCourt(row.court),
     teamA: row.team_a,
     teamB: row.team_b,
     scoreA: row.score_a,
@@ -78,6 +93,7 @@ function mapMatchToRow(match: Match): MatchRow {
     id: match.id,
     event_id: match.eventId,
     round: match.round,
+    court: normalizeCourt(match.court),
     team_a: match.teamA,
     team_b: match.teamB,
     score_a: match.scoreA,
@@ -132,7 +148,7 @@ export async function getEvents(): Promise<Event[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('events')
-    .select('id, name, date, location, match_type, created_at')
+    .select('id, name, date, location, courts, match_type, created_at')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -146,7 +162,7 @@ export async function getEvent(id: string): Promise<Event | null> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('events')
-    .select('id, name, date, location, match_type, created_at')
+    .select('id, name, date, location, courts, match_type, created_at')
     .eq('id', id)
     .maybeSingle();
 
@@ -330,7 +346,7 @@ export async function getAllMatches(): Promise<Match[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('matches')
-    .select('id, event_id, round, team_a, team_b, score_a, score_b, status, created_at')
+    .select('id, event_id, round, court, team_a, team_b, score_a, score_b, status, created_at')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -344,7 +360,7 @@ export async function getMatches(eventId: string): Promise<Match[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('matches')
-    .select('id, event_id, round, team_a, team_b, score_a, score_b, status, created_at')
+    .select('id, event_id, round, court, team_a, team_b, score_a, score_b, status, created_at')
     .eq('event_id', eventId)
     .order('round', { ascending: true })
     .order('created_at', { ascending: true });
