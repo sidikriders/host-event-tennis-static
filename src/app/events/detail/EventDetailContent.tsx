@@ -26,7 +26,7 @@ import {
   updateMatch,
   deleteMatch,
 } from '@/lib/storage';
-import { generateAmericanoMatch } from '@/lib/matchGenerator';
+import { generateAmericanoMatch, getNextGeneratedRound } from '@/lib/matchGenerator';
 import { calculateScoreTable } from '@/lib/scoreTable';
 
 import ParticipantForm from '@/components/ParticipantForm';
@@ -58,6 +58,7 @@ export default function EventDetailContent() {
   const [matchModalOpen, setMatchModalOpen] = useState(false);
   const [savingMatch, setSavingMatch] = useState(false);
   const [generatingMatch, setGeneratingMatch] = useState(false);
+  const [selectedCourt, setSelectedCourt] = useState<'all' | string>('all');
 
   const scoreTableRef = useRef<HTMLDivElement>(null);
   const championsRef = useRef<HTMLDivElement>(null);
@@ -107,6 +108,16 @@ export default function EventDetailContent() {
       setTab('matches');
     }
   }, [isAuthenticated, tab]);
+
+  useEffect(() => {
+    if (!event) {
+      return;
+    }
+
+    if (selectedCourt !== 'all' && !event.courts.includes(selectedCourt)) {
+      setSelectedCourt('all');
+    }
+  }, [event, selectedCourt]);
 
   const eventParticipantObjects = eventParticipants
     .map((ep) => allParticipants.find((p) => p.id === ep.participantId))
@@ -312,9 +323,16 @@ export default function EventDetailContent() {
     await exportElementAsImage(championsRef.current, `${event?.name ?? 'champions'}-champions.png`);
   };
 
-  const nextRound = matches.length > 0
-    ? Math.max(...matches.map((match) => match.round)) + 1
-    : 1;
+  const nextRound = event ? getNextGeneratedRound(event.courts, matches) : 1;
+
+  const matchesByCourt = matches.reduce<Record<string, Match[]>>((groups, match) => {
+    if (!groups[match.court]) {
+      groups[match.court] = [];
+    }
+
+    groups[match.court].push(match);
+    return groups;
+  }, {});
 
   const matchEditorParticipants = editingMatch
     ? allParticipants.filter((participant) => {
@@ -335,6 +353,13 @@ export default function EventDetailContent() {
   }
 
   if (!event) return null;
+
+  const visibleCourtSections = (selectedCourt === 'all' ? event.courts : [selectedCourt])
+    .map((court) => ({
+      court,
+      matches: [...(matchesByCourt[court] ?? [])].reverse(),
+    }))
+    .filter((section) => section.matches.length > 0 || selectedCourt !== 'all');
 
   const formattedDate = (() => {
     try { return format(new Date(event.date), 'MMMM d, yyyy'); } catch { return event.date; }
@@ -514,23 +539,95 @@ export default function EventDetailContent() {
               </div>
             )}
 
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-bold text-gray-800">Court View</h2>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Filter the match list to one court, or view all courts grouped below.
+                  </p>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-500">
+                  {event.courts.length} court{event.courts.length === 1 ? '' : 's'}
+                </span>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCourt('all')}
+                  className={`rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
+                    selectedCourt === 'all'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-white text-gray-700 ring-1 ring-inset ring-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  All Courts
+                </button>
+                {event.courts.map((court) => {
+                  const courtMatchCount = matchesByCourt[court]?.length ?? 0;
+
+                  return (
+                    <button
+                      key={court}
+                      type="button"
+                      onClick={() => setSelectedCourt(court)}
+                      className={`rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
+                        selectedCourt === court
+                          ? 'bg-green-600 text-white'
+                          : 'bg-white text-gray-700 ring-1 ring-inset ring-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {court} ({courtMatchCount})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {matches.length === 0 ? (
               <div className="text-center py-8 text-gray-400">
                 <div className="text-4xl mb-2">🎾</div>
                 <p>No matches yet. Generate the first one!</p>
               </div>
+            ) : visibleCourtSections.every((section) => section.matches.length === 0) ? (
+              <div className="text-center py-8 text-gray-400">
+                <div className="text-4xl mb-2">🎾</div>
+                <p>No matches on {selectedCourt} yet.</p>
+              </div>
             ) : (
               <div className="space-y-3">
-                {[...matches].reverse().map((m) => (
-                  <MatchCard
-                    key={m.id}
-                    match={m}
-                    participants={allParticipants}
-                    onScoreUpdate={handleScoreUpdate}
-                    onEdit={handleEditMatch}
-                    onDelete={handleDeleteMatch}
-                    readOnly={!isAuthenticated}
-                  />
+                {visibleCourtSections.map((section) => (
+                  <section key={section.court} className="space-y-3">
+                    {selectedCourt === 'all' && (
+                      <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-4 py-3 ring-1 ring-inset ring-gray-200">
+                        <div>
+                          <h3 className="font-bold text-gray-800">{section.court}</h3>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {section.matches.length} match{section.matches.length === 1 ? '' : 'es'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {section.matches.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-400">
+                        No matches assigned to {section.court} yet.
+                      </div>
+                    ) : (
+                      section.matches.map((match) => (
+                        <MatchCard
+                          key={match.id}
+                          match={match}
+                          participants={allParticipants}
+                          onScoreUpdate={handleScoreUpdate}
+                          onEdit={handleEditMatch}
+                          onDelete={handleDeleteMatch}
+                          readOnly={!isAuthenticated}
+                        />
+                      ))
+                    )}
+                  </section>
                 ))}
               </div>
             )}

@@ -6,15 +6,31 @@ function normalizeCourts(courts: string[]): string[] {
   return nextCourts.length > 0 ? nextCourts : ['Court 1'];
 }
 
-function getCourtForRound(courts: string[], existingMatches: Match[], round: number): string {
+export function getNextGeneratedRound(courts: string[], existingMatches: Match[]): number {
+  const availableCourts = normalizeCourts(courts);
+
+  if (existingMatches.length === 0) {
+    return 1;
+  }
+
+  const latestRound = Math.max(...existingMatches.map((match) => match.round));
+  const usedCourtsInLatestRound = new Set(
+    existingMatches
+      .filter((match) => match.round === latestRound)
+      .map((match) => match.court)
+      .filter((court) => availableCourts.includes(court))
+  );
+
+  return usedCourtsInLatestRound.size < availableCourts.length
+    ? latestRound
+    : latestRound + 1;
+}
+
+function getCourtForMatch(courts: string[], existingMatches: Match[]): string {
   const availableCourts = normalizeCourts(courts);
   const usageByCourt = new Map(availableCourts.map((court) => [court, 0]));
 
   for (const match of existingMatches) {
-    if (match.round !== round) {
-      continue;
-    }
-
     usageByCourt.set(match.court, (usageByCourt.get(match.court) ?? 0) + 1);
   }
 
@@ -115,16 +131,13 @@ export function generateAmericanoMatch(
     [teamA, teamB] = arrangements[0];
   }
 
-  const round =
-    existingMatches.length > 0
-      ? Math.max(...existingMatches.map((m) => m.round)) + 1
-      : 1;
+  const round = getNextGeneratedRound(courts, existingMatches);
 
   return {
     id: uuidv4(),
     eventId,
     round,
-    court: getCourtForRound(courts, existingMatches, round),
+    court: getCourtForMatch(courts, existingMatches),
     teamA,
     teamB,
     scoreA: null,
@@ -174,16 +187,13 @@ export function generateMexicanoMatch(
     teamB = [orderedIds[1], orderedIds[2]];
   }
 
-  const round =
-    existingMatches.length > 0
-      ? Math.max(...existingMatches.map((m) => m.round)) + 1
-      : 1;
+  const round = getNextGeneratedRound(courts, existingMatches);
 
   return {
     id: uuidv4(),
     eventId,
     round,
-    court: getCourtForRound(courts, existingMatches, round),
+    court: getCourtForMatch(courts, existingMatches),
     teamA,
     teamB,
     scoreA: null,
