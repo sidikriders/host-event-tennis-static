@@ -6,12 +6,19 @@ import { format } from 'date-fns';
 
 interface EventCardProps {
   event: Event;
+  participantCount: number;
   canDelete: boolean;
   deleteReason?: string;
   onDelete: (id: string) => void;
 }
 
-export default function EventCard({ event, canDelete, deleteReason, onDelete }: EventCardProps) {
+export default function EventCard({
+  event,
+  participantCount,
+  canDelete,
+  deleteReason,
+  onDelete,
+}: EventCardProps) {
   const formattedDate = (() => {
     try {
       return format(new Date(event.date), 'MMM d, yyyy');
@@ -28,6 +35,7 @@ export default function EventCard({ event, canDelete, deleteReason, onDelete }: 
             <h3 className="text-lg font-bold text-gray-900 truncate">{event.name}</h3>
             <p className="text-sm text-gray-500 mt-1">📅 {formattedDate}</p>
             <p className="text-sm text-gray-500">📍 {event.location}</p>
+            <p className="text-sm text-gray-500">👥 {participantCount} player{participantCount === 1 ? '' : 's'}</p>
           </div>
           <span
             className={`ml-3 shrink-0 px-2 py-1 rounded-full text-xs font-semibold ${

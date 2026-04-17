@@ -17,6 +17,7 @@ type EventDependencyState = Record<
   {
     canDelete: boolean;
     deleteReason?: string;
+    participantCount: number;
   }
 >;
 
@@ -53,6 +54,7 @@ export default function HomePage() {
                 deleteReason: hasDependencies
                   ? 'Cannot delete an event that already has participants or matches.'
                   : undefined,
+                participantCount: summary.participantCount,
               },
             ] as const;
           })
@@ -164,6 +166,7 @@ export default function HomePage() {
               <EventCard
                 key={event.id}
                 event={event}
+                participantCount={eventDependencies[event.id]?.participantCount ?? 0}
                 canDelete={eventDependencies[event.id]?.canDelete ?? false}
                 deleteReason={eventDependencies[event.id]?.deleteReason}
                 onDelete={handleDelete}
