@@ -4,8 +4,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { v4 as uuidv4 } from 'uuid';
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 import {
   Event,
@@ -23,100 +21,17 @@ import {
   saveEventParticipant,
   updateEventParticipant,
   removeEventParticipant,
-  getMatches,
-  saveMatch,
-  updateMatch,
-  deleteMatch,
 } from '@/lib/storage';
-import { generateAmericanoMatch, getNextGeneratedRound } from '@/lib/matchGenerator';
 import { calculateScoreTable } from '@/lib/scoreTable';
-import { getSupabaseClient } from '@/lib/supabase';
 
 import ParticipantForm from '@/components/ParticipantForm';
 import AttendanceList from '@/components/AttendanceList';
-import MatchEditorModal, { MatchEditorPayload } from '@/components/MatchEditorModal';
 import ScoreTable from '@/components/ScoreTable';
 import ChampionsCard from '@/components/ChampionsCard';
 import { useAuth } from '@/components/AuthProvider';
 import EventMatchesTab from '@/app/events/detail/EventMatchesTab';
 
 type Tab = 'participants' | 'attendance' | 'matches' | 'scoreboard';
-
-type MatchRealtimeRow = {
-  id: string;
-  club_id: string;
-  event_id: string;
-  round: number;
-  court: string | null;
-  team_a: string[];
-  team_b: string[];
-  score_a: number | null;
-  score_b: number | null;
-  status: Match['status'];
-  created_at: string;
-};
-
-function sortMatches(matchList: Match[]) {
-  return [...matchList].sort((left, right) => {
-    if (left.round !== right.round) {
-      return left.round - right.round;
-    }
-
-    return left.createdAt.localeCompare(right.createdAt);
-  });
-}
-
-function mapRealtimeMatchRow(
-  payload: RealtimePostgresChangesPayload<Record<string, unknown>>
-): Match | null {
-  if (payload.eventType === 'DELETE') {
-    return null;
-  }
-
-  const row = payload.new as Partial<MatchRealtimeRow>;
-
-  if (
-    typeof row.id !== 'string' ||
-    typeof row.club_id !== 'string' ||
-    typeof row.event_id !== 'string' ||
-    typeof row.round !== 'number' ||
-    !Array.isArray(row.team_a) ||
-    !Array.isArray(row.team_b) ||
-    typeof row.status !== 'string' ||
-    typeof row.created_at !== 'string'
-  ) {
-    return null;
-  }
-
-  return {
-    id: row.id,
-    clubId: row.club_id,
-    eventId: row.event_id,
-    round: row.round,
-    court: typeof row.court === 'string' && row.court.trim() ? row.court : 'Court 1',
-    teamA: row.team_a.filter((playerId): playerId is string => typeof playerId === 'string'),
-    teamB: row.team_b.filter((playerId): playerId is string => typeof playerId === 'string'),
-    scoreA: typeof row.score_a === 'number' ? row.score_a : null,
-    scoreB: typeof row.score_b === 'number' ? row.score_b : null,
-    status:
-      row.status === 'completed' || row.status === 'ongoing' || row.status === 'pending'
-        ? row.status
-        : 'pending',
-    createdAt: row.created_at,
-  };
-}
-
-function upsertMatch(currentMatches: Match[], nextMatch: Match) {
-  const existingIndex = currentMatches.findIndex((match) => match.id === nextMatch.id);
-
-  if (existingIndex === -1) {
-    return sortMatches([...currentMatches, nextMatch]);
-  }
-
-  const updatedMatches = [...currentMatches];
-  updatedMatches[existingIndex] = nextMatch;
-  return sortMatches(updatedMatches);
-}
 
 export default function EventDetailContent() {
   const searchParams = useSearchParams();
@@ -133,11 +48,6 @@ export default function EventDetailContent() {
   const [importModal, setImportModal] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editingMatch, setEditingMatch] = useState<Match | null>(null);
-  const [matchModalOpen, setMatchModalOpen] = useState(false);
-  const [savingMatch, setSavingMatch] = useState(false);
-  const [generatingMatch, setGeneratingMatch] = useState(false);
-  const [selectedCourt, setSelectedCourt] = useState<'all' | string>('all');
 
   const scoreTableRef = useRef<HTMLDivElement>(null);
   const championsRef = useRef<HTMLDivElement>(null);
@@ -170,9 +80,6 @@ export default function EventDetailContent() {
         : await getParticipantsByIds(participantIds);
       setAllParticipants(allP);
 
-      const ms = await getMatches(eventId);
-      setMatches(sortMatches(ms));
-
       setLoaded(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load event.');
@@ -191,66 +98,12 @@ export default function EventDetailContent() {
   }, [canOperateEvent, tab]);
 
   useEffect(() => {
-    if (!event) {
-      return;
-    }
-
-    if (selectedCourt !== 'all' && !event.courts.includes(selectedCourt)) {
-      setSelectedCourt('all');
-    }
-  }, [event, selectedCourt]);
-
-  useEffect(() => {
     const scoreParticipants = eventParticipants
       .map((eventParticipant) => allParticipants.find((participant) => participant.id === eventParticipant.participantId))
       .filter(Boolean) as Participant[];
 
     setStats(calculateScoreTable(scoreParticipants, matches));
   }, [allParticipants, eventParticipants, matches]);
-
-  useEffect(() => {
-    if (!eventId) {
-      return;
-    }
-
-    const supabase = getSupabaseClient();
-    const channel = supabase
-      .channel(`event-matches:${eventId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'matches',
-          filter: `event_id=eq.${eventId}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'DELETE') {
-            const deletedMatchId = payload.old.id;
-
-            if (typeof deletedMatchId !== 'string') {
-              return;
-            }
-
-            setMatches((currentMatches) => currentMatches.filter((match) => match.id !== deletedMatchId));
-            return;
-          }
-
-          const nextMatch = mapRealtimeMatchRow(payload);
-
-          if (!nextMatch) {
-            return;
-          }
-
-          setMatches((currentMatches) => upsertMatch(currentMatches, nextMatch));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [eventId]);
 
   const eventParticipantObjects = eventParticipants
     .map((ep) => allParticipants.find((p) => p.id === ep.participantId))
@@ -319,134 +172,6 @@ export default function EventDetailContent() {
     }
   };
 
-  const handleGenerateMatch = async () => {
-    if (!canOperateEvent) return;
-    if (!event) return;
-    const minPlayers = event.matchType === 'double' ? 4 : 2;
-    if (presentIds.length < minPlayers) {
-      alert(`Need at least ${minPlayers} present players.`);
-      return;
-    }
-
-    let match: Match | null = null;
-    match = generateAmericanoMatch(
-      presentIds,
-      matches,
-      event.clubId,
-      eventId,
-      event.matchType,
-      event.courts
-    );
-
-    if (match) {
-      try {
-        setGeneratingMatch(true);
-        setError(null);
-        await saveMatch(match);
-        await reload();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to create match.');
-      } finally {
-        setGeneratingMatch(false);
-      }
-      setTab('matches');
-    }
-  };
-
-  const handleCreateCustomMatch = () => {
-    if (!canOperateEvent || !event) return;
-
-    const minPlayers = event.matchType === 'double' ? 4 : 2;
-    if (presentIds.length < minPlayers) {
-      alert(`Need at least ${minPlayers} present players.`);
-      return;
-    }
-
-    setEditingMatch(null);
-    setMatchModalOpen(true);
-  };
-
-  const handleEditMatch = (match: Match) => {
-    if (!canOperateEvent) return;
-    setEditingMatch(match);
-    setMatchModalOpen(true);
-  };
-
-  const handleCloseMatchModal = () => {
-    if (savingMatch) return;
-    setEditingMatch(null);
-    setMatchModalOpen(false);
-  };
-
-  const handleSaveMatch = async (payload: MatchEditorPayload) => {
-    if (!canOperateEvent || !event) return;
-
-    setSavingMatch(true);
-    setError(null);
-
-    try {
-      if (editingMatch) {
-        await updateMatch({
-          ...editingMatch,
-          round: payload.round,
-          court: payload.court,
-          teamA: payload.teamA,
-          teamB: payload.teamB,
-          status: payload.status,
-          scoreA: payload.scoreA,
-          scoreB: payload.scoreB,
-        });
-      } else {
-        await saveMatch({
-          id: uuidv4(),
-          clubId: event.clubId,
-          eventId,
-          round: payload.round,
-          court: payload.court,
-          teamA: payload.teamA,
-          teamB: payload.teamB,
-          scoreA: payload.scoreA,
-          scoreB: payload.scoreB,
-          status: payload.status,
-          createdAt: new Date().toISOString(),
-        });
-      }
-
-      setMatchModalOpen(false);
-      setEditingMatch(null);
-      setTab('matches');
-      await reload();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save match.');
-    } finally {
-      setSavingMatch(false);
-    }
-  };
-
-  const handleScoreUpdate = async (matchId: string, scoreA: number, scoreB: number) => {
-    if (!canOperateEvent) return;
-    const m = matches.find((x) => x.id === matchId);
-    if (!m) return;
-    try {
-      setError(null);
-      await updateMatch({ ...m, scoreA, scoreB, status: 'completed' });
-      await reload();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update match.');
-    }
-  };
-
-  const handleDeleteMatch = async (matchId: string) => {
-    if (!canOperateEvent) return;
-    if (!confirm('Delete this match?')) return;
-    try {
-      setError(null);
-      await deleteMatch(matchId);
-      await reload();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete match.');
-    }
-  };
 
   const exportElementAsImage = async (element: HTMLElement, filename: string) => {
     const html2canvas = (await import('html2canvas')).default;
@@ -466,18 +191,6 @@ export default function EventDetailContent() {
     if (!championsRef.current) return;
     await exportElementAsImage(championsRef.current, `${event?.name ?? 'champions'}-champions.png`);
   };
-
-  const nextRound = event ? getNextGeneratedRound(event.courts, matches) : 1;
-
-  const matchEditorParticipants = editingMatch
-    ? allParticipants.filter((participant) => {
-        if (presentIds.includes(participant.id)) {
-          return true;
-        }
-
-        return [...editingMatch.teamA, ...editingMatch.teamB].includes(participant.id);
-      })
-    : presentParticipants;
 
   if (!loaded) {
     return (
@@ -642,23 +355,16 @@ export default function EventDetailContent() {
         )}
 
         {/* MATCHES TAB */}
-        {tab === 'matches' && (
-          <EventMatchesTab
-            event={event}
-            matches={matches}
-            participants={allParticipants}
-            presentCount={presentIds.length}
-            canOperateEvent={canOperateEvent}
-            generatingMatch={generatingMatch}
-            selectedCourt={selectedCourt}
-            onSelectCourt={setSelectedCourt}
-            onGenerateMatch={handleGenerateMatch}
-            onCreateCustomMatch={handleCreateCustomMatch}
-            onScoreUpdate={handleScoreUpdate}
-            onEditMatch={handleEditMatch}
-            onDeleteMatch={handleDeleteMatch}
-          />
-        )}
+        <EventMatchesTab
+          eventId={eventId}
+          event={event}
+          participants={allParticipants}
+          presentParticipants={presentParticipants}
+          presentIds={presentIds}
+          canOperateEvent={canOperateEvent}
+          isActive={tab === 'matches'}
+          onMatchesChange={setMatches}
+        />
 
         {/* SCOREBOARD TAB */}
         {tab === 'scoreboard' && (
@@ -736,18 +442,6 @@ export default function EventDetailContent() {
         </div>
       )}
 
-      {matchModalOpen && event && canOperateEvent && (
-        <MatchEditorModal
-          matchType={event.matchType}
-          courts={event.courts}
-          participants={matchEditorParticipants}
-          nextRound={nextRound}
-          match={editingMatch}
-          saving={savingMatch}
-          onClose={handleCloseMatchModal}
-          onSave={handleSaveMatch}
-        />
-      )}
     </div>
   );
 }

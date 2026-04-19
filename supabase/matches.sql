@@ -61,6 +61,7 @@ create index if not exists matches_event_id_idx on public.matches(event_id);
 create index if not exists matches_event_round_idx on public.matches(event_id, round);
 
 alter table public.matches enable row level security;
+alter table public.matches replica identity full;
 
 do $$
 begin
