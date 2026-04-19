@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 type MatchType = 'single' | 'double';
 
@@ -25,6 +26,18 @@ interface EventFormProps {
   }) => Promise<void>;
 }
 
+type CourtField = {
+  id: string;
+  name: string;
+};
+
+function createCourtField(name: string): CourtField {
+  return {
+    id: uuidv4(),
+    name,
+  };
+}
+
 export default function EventForm({
   initialValues,
   submitLabel,
@@ -36,9 +49,10 @@ export default function EventForm({
   const [name, setName] = useState(initialValues.name);
   const [date, setDate] = useState(initialValues.date);
   const [location, setLocation] = useState(initialValues.location);
-  const [courts, setCourts] = useState(
-    initialValues.courts.length > 0 ? initialValues.courts : ['Court 1']
-  );
+  const [courts, setCourts] = useState<CourtField[]>(() => {
+    const initialCourts = initialValues.courts.length > 0 ? initialValues.courts : ['Court 1'];
+    return initialCourts.map(createCourtField);
+  });
   const [matchType, setMatchType] = useState<MatchType>(initialValues.matchType);
 
   const updateCourt = (index: number, value: string) => {
@@ -47,18 +61,24 @@ export default function EventForm({
         return court;
       }
 
-      return value;
+      return {
+        ...court,
+        name: value,
+      };
     }));
   };
 
   const addCourt = () => {
-    setCourts((currentCourts) => [...currentCourts, `Court ${currentCourts.length + 1}`]);
+    setCourts((currentCourts) => [
+      ...currentCourts,
+      createCourtField(`Court ${currentCourts.length + 1}`),
+    ]);
   };
 
   const removeCourt = (index: number) => {
     setCourts((currentCourts) => {
       const nextCourts = currentCourts.filter((_, courtIndex) => courtIndex !== index);
-      return nextCourts.length > 0 ? nextCourts : ['Court 1'];
+      return nextCourts.length > 0 ? nextCourts : [createCourtField('Court 1')];
     });
   };
 
@@ -68,7 +88,7 @@ export default function EventForm({
       return;
     }
 
-    const normalizedCourts = courts.map((court) => court.trim()).filter(Boolean);
+    const normalizedCourts = courts.map((court) => court.name.trim()).filter(Boolean);
     if (normalizedCourts.length === 0) {
       return;
     }
@@ -138,10 +158,10 @@ export default function EventForm({
         </div>
         <div className="space-y-3">
           {courts.map((court, index) => (
-            <div key={`${index}-${court}`} className="flex items-center gap-3">
+            <div key={court.id} className="flex items-center gap-3">
               <input
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
-                value={court}
+                value={court.name}
                 onChange={(event) => updateCourt(index, event.target.value)}
                 placeholder={`Court ${index + 1}`}
                 required
