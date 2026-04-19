@@ -1,8 +1,19 @@
-import { Event, Participant, EventParticipant, Match } from '@/types';
+import { Club, Event, EventParticipant, Match, Participant } from '@/types';
 import { getSupabaseClient } from '@/lib/supabase';
+
+type ClubRow = {
+  id: string;
+  name: string;
+  tag_name: string;
+  description: string | null;
+  created_by_id: string;
+  created_at: string;
+};
 
 type EventRow = {
   id: string;
+  club_id: string;
+  created_by_id: string;
   name: string;
   date: string;
   location: string;
@@ -13,6 +24,7 @@ type EventRow = {
 
 type MatchRow = {
   id: string;
+  club_id: string;
   event_id: string;
   round: number;
   court: string | null;
@@ -26,6 +38,7 @@ type MatchRow = {
 
 type ParticipantRow = {
   id: string;
+  club_id: string;
   name: string;
   gender: 'male' | 'female' | 'other';
   note: string;
@@ -49,9 +62,22 @@ function normalizeCourt(court: string | null | undefined): string {
   return nextCourt ? nextCourt : 'Court 1';
 }
 
+function mapClubRow(row: ClubRow): Club {
+  return {
+    id: row.id,
+    name: row.name,
+    tagName: row.tag_name,
+    description: row.description ?? '',
+    createdById: row.created_by_id,
+    createdAt: row.created_at,
+  };
+}
+
 function mapEventRow(row: EventRow): Event {
   return {
     id: row.id,
+    clubId: row.club_id,
+    createdById: row.created_by_id,
     name: row.name,
     date: row.date,
     location: row.location,
@@ -64,6 +90,8 @@ function mapEventRow(row: EventRow): Event {
 function mapEventToRow(event: Event): EventRow {
   return {
     id: event.id,
+    club_id: event.clubId,
+    created_by_id: event.createdById,
     name: event.name,
     date: event.date,
     location: event.location,
@@ -76,6 +104,7 @@ function mapEventToRow(event: Event): EventRow {
 function mapMatchRow(row: MatchRow): Match {
   return {
     id: row.id,
+    clubId: row.club_id,
     eventId: row.event_id,
     round: row.round,
     court: normalizeCourt(row.court),
@@ -91,6 +120,7 @@ function mapMatchRow(row: MatchRow): Match {
 function mapMatchToRow(match: Match): MatchRow {
   return {
     id: match.id,
+    club_id: match.clubId,
     event_id: match.eventId,
     round: match.round,
     court: normalizeCourt(match.court),
@@ -106,6 +136,7 @@ function mapMatchToRow(match: Match): MatchRow {
 function mapParticipantRow(row: ParticipantRow): Participant {
   return {
     id: row.id,
+    clubId: row.club_id,
     name: row.name,
     gender: row.gender,
     note: row.note,
@@ -117,6 +148,7 @@ function mapParticipantRow(row: ParticipantRow): Participant {
 function mapParticipantToRow(participant: Participant): ParticipantRow {
   return {
     id: participant.id,
+    club_id: participant.clubId,
     name: participant.name,
     gender: participant.gender,
     note: participant.note,
@@ -133,9 +165,7 @@ function mapEventParticipantRow(row: EventParticipantRow): EventParticipant {
   };
 }
 
-function mapEventParticipantToRow(
-  eventParticipant: EventParticipant
-): EventParticipantRow {
+function mapEventParticipantToRow(eventParticipant: EventParticipant): EventParticipantRow {
   return {
     event_id: eventParticipant.eventId,
     participant_id: eventParticipant.participantId,
@@ -143,26 +173,76 @@ function mapEventParticipantToRow(
   };
 }
 
-// Events
-export async function getEvents(): Promise<Event[]> {
+export async function createClub(club: Club, ownerUserId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error: clubError } = await supabase.from('clubs').insert({
+    id: club.id,
+    name: club.name,
+    tag_name: club.tagName,
+    description: club.description,
+    created_by_id: club.createdById,
+    created_at: club.createdAt,
+  });
+
+  if (clubError) {
+    throw new Error(`Failed to create club: ${clubError.message}`);
+  }
+
+  const { error: memberError } = await supabase.from('club_members').insert({
+    club_id: club.id,
+    user_id: ownerUserId,
+    role: 'owner',
+  });
+
+  if (memberError) {
+    throw new Error(`Failed to create club owner membership: ${memberError.message}`);
+  }
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ current_club_id: club.id, updated_at: new Date().toISOString() })
+    .eq('id', ownerUserId);
+
+  if (profileError) {
+    throw new Error(`Failed to set active club: ${profileError.message}`);
+  }
+}
+
+export async function getClub(clubId: string): Promise<Club | null> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('clubs')
+    .select('id, name, tag_name, description, created_by_id, created_at')
+    .eq('id', clubId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load club: ${error.message}`);
+  }
+
+  return data ? mapClubRow(data as ClubRow) : null;
+}
+
+export async function getEvents(clubId: string): Promise<Event[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('events')
-    .select('id, name, date, location, courts, match_type, created_at')
+    .select('id, club_id, created_by_id, name, date, location, courts, match_type, created_at')
+    .eq('club_id', clubId)
     .order('created_at', { ascending: false });
 
   if (error) {
     throw new Error(`Failed to load events: ${error.message}`);
   }
 
-  return (data ?? []).map(mapEventRow);
+  return ((data ?? []) as EventRow[]).map(mapEventRow);
 }
 
 export async function getEvent(id: string): Promise<Event | null> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('events')
-    .select('id, name, date, location, courts, match_type, created_at')
+    .select('id, club_id, created_by_id, name, date, location, courts, match_type, created_at')
     .eq('id', id)
     .maybeSingle();
 
@@ -170,7 +250,7 @@ export async function getEvent(id: string): Promise<Event | null> {
     throw new Error(`Failed to load event: ${error.message}`);
   }
 
-  return data ? mapEventRow(data) : null;
+  return data ? mapEventRow(data as EventRow) : null;
 }
 
 export async function saveEvent(event: Event): Promise<void> {
@@ -187,9 +267,7 @@ export interface EventDependencySummary {
   matchCount: number;
 }
 
-export async function getEventDependencySummary(
-  eventId: string
-): Promise<EventDependencySummary> {
+export async function getEventDependencySummary(eventId: string): Promise<EventDependencySummary> {
   const supabase = getSupabaseClient();
   const [{ count: participantCount, error: participantError }, { count: matchCount, error: matchError }] =
     await Promise.all([
@@ -232,24 +310,43 @@ export async function deleteEvent(id: string): Promise<void> {
   }
 }
 
-// Participants
-export async function getParticipants(): Promise<Participant[]> {
+export async function getParticipants(clubId: string): Promise<Participant[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('participants')
-    .select('id, name, gender, note, origin, instagram')
+    .select('id, club_id, name, gender, note, origin, instagram')
+    .eq('club_id', clubId)
     .order('name', { ascending: true });
 
   if (error) {
     throw new Error(`Failed to load participants: ${error.message}`);
   }
 
-  return (data ?? []).map(mapParticipantRow);
+  return ((data ?? []) as ParticipantRow[]).map(mapParticipantRow);
 }
 
-export async function saveParticipant(p: Participant): Promise<void> {
+export async function getParticipantsByIds(participantIds: string[]): Promise<Participant[]> {
+  if (participantIds.length === 0) {
+    return [];
+  }
+
   const supabase = getSupabaseClient();
-  const { error } = await supabase.from('participants').upsert(mapParticipantToRow(p));
+  const { data, error } = await supabase
+    .from('participants')
+    .select('id, club_id, name, gender, note, origin, instagram')
+    .in('id', participantIds)
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to load participants: ${error.message}`);
+  }
+
+  return ((data ?? []) as ParticipantRow[]).map(mapParticipantRow);
+}
+
+export async function saveParticipant(participant: Participant): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from('participants').upsert(mapParticipantToRow(participant));
 
   if (error) {
     throw new Error(`Failed to save participant: ${error.message}`);
@@ -271,23 +368,21 @@ export async function deleteParticipant(id: string): Promise<void> {
   }
 }
 
-// EventParticipants
-export async function getAllEventParticipants(): Promise<EventParticipant[]> {
+export async function getAllEventParticipants(clubId: string): Promise<EventParticipant[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('event_participants')
-    .select('event_id, participant_id, present');
+    .select('event_id, participant_id, present, events!inner(club_id)')
+    .eq('events.club_id', clubId);
 
   if (error) {
     throw new Error(`Failed to load event participants: ${error.message}`);
   }
 
-  return (data ?? []).map(mapEventParticipantRow);
+  return ((data ?? []) as EventParticipantRow[]).map(mapEventParticipantRow);
 }
 
-export async function getEventParticipants(
-  eventId: string
-): Promise<EventParticipant[]> {
+export async function getEventParticipants(eventId: string): Promise<EventParticipant[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('event_participants')
@@ -298,7 +393,7 @@ export async function getEventParticipants(
     throw new Error(`Failed to load event participants: ${error.message}`);
   }
 
-  return (data ?? []).map(mapEventParticipantRow);
+  return ((data ?? []) as EventParticipantRow[]).map(mapEventParticipantRow);
 }
 
 export async function saveEventParticipant(ep: EventParticipant): Promise<void> {
@@ -325,10 +420,7 @@ export async function updateEventParticipant(ep: EventParticipant): Promise<void
   }
 }
 
-export async function removeEventParticipant(
-  eventId: string,
-  participantId: string
-): Promise<void> {
+export async function removeEventParticipant(eventId: string, participantId: string): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from('event_participants')
@@ -341,26 +433,26 @@ export async function removeEventParticipant(
   }
 }
 
-// Matches
-export async function getAllMatches(): Promise<Match[]> {
+export async function getAllMatches(clubId: string): Promise<Match[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('matches')
-    .select('id, event_id, round, court, team_a, team_b, score_a, score_b, status, created_at')
+    .select('id, club_id, event_id, round, court, team_a, team_b, score_a, score_b, status, created_at')
+    .eq('club_id', clubId)
     .order('created_at', { ascending: false });
 
   if (error) {
     throw new Error(`Failed to load matches: ${error.message}`);
   }
 
-  return (data ?? []).map(mapMatchRow);
+  return ((data ?? []) as MatchRow[]).map(mapMatchRow);
 }
 
 export async function getMatches(eventId: string): Promise<Match[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('matches')
-    .select('id, event_id, round, court, team_a, team_b, score_a, score_b, status, created_at')
+    .select('id, club_id, event_id, round, court, team_a, team_b, score_a, score_b, status, created_at')
     .eq('event_id', eventId)
     .order('round', { ascending: true })
     .order('created_at', { ascending: true });
@@ -369,7 +461,7 @@ export async function getMatches(eventId: string): Promise<Match[]> {
     throw new Error(`Failed to load matches: ${error.message}`);
   }
 
-  return (data ?? []).map(mapMatchRow);
+  return ((data ?? []) as MatchRow[]).map(mapMatchRow);
 }
 
 export async function saveMatch(match: Match): Promise<void> {
@@ -403,9 +495,15 @@ export async function deleteMatch(id: string): Promise<void> {
 }
 
 export async function getParticipantMatchCount(participantId: string): Promise<number> {
-  const matches = await getAllMatches();
+  const supabase = getSupabaseClient();
+  const { count, error } = await supabase
+    .from('matches')
+    .select('*', { count: 'exact', head: true })
+    .or(`team_a.cs.{${participantId}},team_b.cs.{${participantId}}`);
 
-  return matches.filter(
-    (match) => match.teamA.includes(participantId) || match.teamB.includes(participantId)
-  ).length;
+  if (error) {
+    throw new Error(`Failed to load player match count: ${error.message}`);
+  }
+
+  return count ?? 0;
 }

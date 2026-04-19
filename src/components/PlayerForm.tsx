@@ -58,6 +58,7 @@ export default function PlayerForm({
 
     const participant: Participant = {
       id: initialParticipant?.id ?? uuidv4(),
+      clubId: initialParticipant?.clubId ?? '',
       name: name.trim(),
       gender,
       note: note.trim(),

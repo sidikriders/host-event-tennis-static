@@ -11,7 +11,7 @@ import EventForm from '@/components/EventForm';
 
 export default function NewEventPage() {
   const router = useRouter();
-  const { isAuthenticated, isReady } = useAuth();
+  const { activeClub, isAuthenticated, isClubAdmin, isReady, user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,8 +19,18 @@ export default function NewEventPage() {
     if (!isReady) return;
     if (!isAuthenticated) {
       router.replace('/login?next=/events/new');
+      return;
     }
-  }, [isAuthenticated, isReady, router]);
+
+    if (!activeClub) {
+      router.replace('/clubs/new?next=/events/new');
+      return;
+    }
+
+    if (!isClubAdmin) {
+      router.replace('/');
+    }
+  }, [activeClub, isAuthenticated, isClubAdmin, isReady, router]);
 
   const handleSubmit = async (values: {
     name: string;
@@ -34,6 +44,8 @@ export default function NewEventPage() {
 
     const event: Event = {
       id: uuidv4(),
+      clubId: activeClub?.id ?? '',
+      createdById: user?.id ?? '',
       name: values.name,
       date: values.date,
       location: values.location,
@@ -51,7 +63,7 @@ export default function NewEventPage() {
     }
   };
 
-  if (!isReady || !isAuthenticated) {
+  if (!isReady || !isAuthenticated || !activeClub || !isClubAdmin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 flex items-center justify-center">
         <div className="text-green-100 text-lg font-semibold">Loading...</div>
@@ -66,6 +78,9 @@ export default function NewEventPage() {
           ← Back
         </Link>
         <h1 className="text-2xl font-extrabold text-white mt-3">🎾 New Event</h1>
+        <p className="text-green-100 text-sm mt-1">
+          Creating for {activeClub.tagName} · {activeClub.name}
+        </p>
       </header>
 
       <main className="max-w-lg mx-auto px-4 pb-20">

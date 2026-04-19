@@ -8,6 +8,7 @@ interface EventCardProps {
   event: Event;
   participantCount: number;
   canDelete: boolean;
+  canManage: boolean;
   deleteReason?: string;
   onDelete: (id: string) => void;
 }
@@ -16,6 +17,7 @@ export default function EventCard({
   event,
   participantCount,
   canDelete,
+  canManage,
   deleteReason,
   onDelete,
 }: EventCardProps) {
@@ -49,25 +51,27 @@ export default function EventCard({
           </span>
         </div>
       </Link>
-      <div className="px-5 pb-4 flex items-center justify-between gap-3">
-        <Link
-          href={`/events/edit?id=${event.id}`}
-          className="text-xs font-semibold text-green-700 transition-colors hover:text-green-900"
-        >
-          ✏️ Edit
-        </Link>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (confirm(`Delete event "${event.name}"?`)) onDelete(event.id);
-          }}
-          disabled={!canDelete}
-          title={deleteReason}
-          className="text-xs text-red-400 hover:text-red-600 transition-colors disabled:cursor-not-allowed disabled:text-red-200"
-        >
-          🗑 Delete
-        </button>
-      </div>
+      {canManage && (
+        <div className="px-5 pb-4 flex items-center justify-between gap-3">
+          <Link
+            href={`/events/edit?id=${event.id}`}
+            className="text-xs font-semibold text-green-700 transition-colors hover:text-green-900"
+          >
+            ✏️ Edit
+          </Link>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirm(`Delete event "${event.name}"?`)) onDelete(event.id);
+            }}
+            disabled={!canDelete}
+            title={deleteReason}
+            className="text-xs text-red-400 hover:text-red-600 transition-colors disabled:cursor-not-allowed disabled:text-red-200"
+          >
+            🗑 Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 }

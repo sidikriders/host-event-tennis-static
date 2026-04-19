@@ -12,7 +12,7 @@ import EventForm from '@/components/EventForm';
 function EditEventPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, isReady } = useAuth();
+  const { activeClub, getClubRole, isAuthenticated, isReady } = useAuth();
   const eventId = searchParams.get('id') ?? '';
 
   const [event, setEvent] = useState<Event | null>(null);
@@ -24,6 +24,11 @@ function EditEventPageContent() {
     if (!isReady) return;
     if (!isAuthenticated) {
       router.replace(`/login?next=/events/edit?id=${eventId}`);
+      return;
+    }
+
+    if (!activeClub) {
+      router.replace(`/clubs/new?next=/events/edit?id=${eventId}`);
       return;
     }
 
@@ -40,6 +45,12 @@ function EditEventPageContent() {
         const data = await getEvent(eventId);
         if (!data) {
           router.replace('/');
+          return;
+        }
+
+        const role = getClubRole(data.clubId);
+        if (role !== 'owner' && role !== 'admin') {
+          router.replace(`/events/detail?id=${data.id}`);
           return;
         }
 
@@ -62,7 +73,7 @@ function EditEventPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [eventId, isAuthenticated, isReady, router]);
+  }, [activeClub, eventId, getClubRole, isAuthenticated, isReady, router]);
 
   const handleSubmit = async (values: {
     name: string;

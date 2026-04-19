@@ -16,6 +16,7 @@ import {
 import {
   getEvent,
   getParticipants,
+  getParticipantsByIds,
   saveParticipant,
   getEventParticipants,
   saveEventParticipant,
@@ -42,7 +43,7 @@ type Tab = 'participants' | 'attendance' | 'matches' | 'scoreboard';
 export default function EventDetailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { isAuthenticated, user } = useAuth();
+  const { getClubRole, isAuthenticated, user } = useAuth();
   const eventId = searchParams.get('id') ?? '';
 
   const [event, setEvent] = useState<Event | null>(null);
@@ -62,6 +63,9 @@ export default function EventDetailContent() {
 
   const scoreTableRef = useRef<HTMLDivElement>(null);
   const championsRef = useRef<HTMLDivElement>(null);
+  const viewerRole = event ? getClubRole(event.clubId) : null;
+  const canOperateEvent = viewerRole !== null;
+  const canManageEvent = viewerRole === 'owner' || viewerRole === 'admin';
 
   const reload = useCallback(async () => {
     if (!eventId) {
@@ -81,7 +85,11 @@ export default function EventDetailContent() {
       const eps = await getEventParticipants(eventId);
       setEventParticipants(eps);
 
-      const allP = await getParticipants();
+      const role = getClubRole(ev.clubId);
+      const participantIds = eps.map((eventParticipant) => eventParticipant.participantId);
+      const allP = role
+        ? await getParticipants(ev.clubId)
+        : await getParticipantsByIds(participantIds);
       setAllParticipants(allP);
 
       const ms = await getMatches(eventId);
@@ -97,17 +105,17 @@ export default function EventDetailContent() {
       setError(err instanceof Error ? err.message : 'Failed to load event.');
       setLoaded(true);
     }
-  }, [eventId, router]);
+  }, [eventId, getClubRole, router]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
   useEffect(() => {
-    if (!isAuthenticated && (tab === 'participants' || tab === 'attendance')) {
+    if (!canOperateEvent && (tab === 'participants' || tab === 'attendance')) {
       setTab('matches');
     }
-  }, [isAuthenticated, tab]);
+  }, [canOperateEvent, tab]);
 
   useEffect(() => {
     if (!event) {
@@ -137,10 +145,13 @@ export default function EventDetailContent() {
   );
 
   const handleAddParticipant = async (p: Participant) => {
-    if (!isAuthenticated) return;
+    if (!canOperateEvent || !event) return;
     try {
       setError(null);
-      await saveParticipant(p);
+      await saveParticipant({
+        ...p,
+        clubId: event.clubId,
+      });
       await saveEventParticipant({ eventId, participantId: p.id, present: true });
       await reload();
     } catch (err) {
@@ -149,7 +160,7 @@ export default function EventDetailContent() {
   };
 
   const handleImportParticipant = async (p: Participant) => {
-    if (!isAuthenticated) return;
+    if (!canOperateEvent) return;
     try {
       setError(null);
       await saveEventParticipant({ eventId, participantId: p.id, present: true });
@@ -161,7 +172,7 @@ export default function EventDetailContent() {
   };
 
   const handleRemoveParticipant = async (participantId: string) => {
-    if (!isAuthenticated) return;
+    if (!canOperateEvent) return;
     if (!confirm('Remove this participant from the event?')) return;
     try {
       setError(null);
@@ -173,7 +184,7 @@ export default function EventDetailContent() {
   };
 
   const handleAttendanceToggle = async (participantId: string, present: boolean) => {
-    if (!isAuthenticated) return;
+    if (!canOperateEvent) return;
     try {
       setError(null);
       await updateEventParticipant({ eventId, participantId, present });
@@ -184,7 +195,7 @@ export default function EventDetailContent() {
   };
 
   const handleGenerateMatch = async () => {
-    if (!isAuthenticated) return;
+    if (!canOperateEvent) return;
     if (!event) return;
     const minPlayers = event.matchType === 'double' ? 4 : 2;
     if (presentIds.length < minPlayers) {
@@ -193,7 +204,14 @@ export default function EventDetailContent() {
     }
 
     let match: Match | null = null;
-    match = generateAmericanoMatch(presentIds, matches, eventId, event.matchType, event.courts);
+    match = generateAmericanoMatch(
+      presentIds,
+      matches,
+      event.clubId,
+      eventId,
+      event.matchType,
+      event.courts
+    );
 
     if (match) {
       try {
@@ -211,7 +229,7 @@ export default function EventDetailContent() {
   };
 
   const handleCreateCustomMatch = () => {
-    if (!isAuthenticated || !event) return;
+    if (!canOperateEvent || !event) return;
 
     const minPlayers = event.matchType === 'double' ? 4 : 2;
     if (presentIds.length < minPlayers) {
@@ -224,7 +242,7 @@ export default function EventDetailContent() {
   };
 
   const handleEditMatch = (match: Match) => {
-    if (!isAuthenticated) return;
+    if (!canOperateEvent) return;
     setEditingMatch(match);
     setMatchModalOpen(true);
   };
@@ -236,7 +254,7 @@ export default function EventDetailContent() {
   };
 
   const handleSaveMatch = async (payload: MatchEditorPayload) => {
-    if (!isAuthenticated || !event) return;
+    if (!canOperateEvent || !event) return;
 
     setSavingMatch(true);
     setError(null);
@@ -256,6 +274,7 @@ export default function EventDetailContent() {
       } else {
         await saveMatch({
           id: uuidv4(),
+          clubId: event.clubId,
           eventId,
           round: payload.round,
           court: payload.court,
@@ -280,7 +299,7 @@ export default function EventDetailContent() {
   };
 
   const handleScoreUpdate = async (matchId: string, scoreA: number, scoreB: number) => {
-    if (!isAuthenticated) return;
+    if (!canOperateEvent) return;
     const m = matches.find((x) => x.id === matchId);
     if (!m) return;
     try {
@@ -293,7 +312,7 @@ export default function EventDetailContent() {
   };
 
   const handleDeleteMatch = async (matchId: string) => {
-    if (!isAuthenticated) return;
+    if (!canOperateEvent) return;
     if (!confirm('Delete this match?')) return;
     try {
       setError(null);
@@ -365,7 +384,7 @@ export default function EventDetailContent() {
     try { return format(new Date(event.date), 'MMMM d, yyyy'); } catch { return event.date; }
   })();
 
-  const tabs: { key: Tab; label: string; emoji: string }[] = isAuthenticated
+  const tabs: { key: Tab; label: string; emoji: string }[] = canOperateEvent
     ? [
         { key: 'participants', label: 'Players', emoji: '👥' },
         { key: 'attendance', label: 'Attendance', emoji: '✅' },
@@ -397,7 +416,7 @@ export default function EventDetailContent() {
               {event.matchType === 'double' ? '👥 Doubles' : '👤 Singles'}
             </span>
           </div>
-          {isAuthenticated && (
+          {canManageEvent && (
             <div className="flex items-center gap-2">
               <Link
                 href={`/events/edit?id=${event.id}`}
@@ -445,12 +464,14 @@ export default function EventDetailContent() {
               <h2 className="font-bold text-gray-800 text-lg">
                 Participants ({eventParticipants.length})
               </h2>
-              <button
-                onClick={() => setImportModal(true)}
-                className="text-sm text-blue-600 hover:text-blue-800 font-semibold"
-              >
-                📋 Import from Past
-              </button>
+              {canOperateEvent && (
+                <button
+                  onClick={() => setImportModal(true)}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-semibold"
+                >
+                  📋 Import from Past
+                </button>
+              )}
             </div>
 
             {eventParticipantObjects.length === 0 ? (
@@ -477,18 +498,20 @@ export default function EventDetailContent() {
                         {p.instagram && <span>· @{p.instagram.replace('@', '')}</span>}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleRemoveParticipant(p.id)}
-                      className="text-red-400 hover:text-red-600 text-sm px-2 py-1"
-                    >
-                      ✕
-                    </button>
+                    {canOperateEvent && (
+                      <button
+                        onClick={() => handleRemoveParticipant(p.id)}
+                        className="text-red-400 hover:text-red-600 text-sm px-2 py-1"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             )}
 
-            <ParticipantForm onAdd={handleAddParticipant} />
+            {canOperateEvent && <ParticipantForm onAdd={handleAddParticipant} />}
           </div>
         )}
 
@@ -512,7 +535,7 @@ export default function EventDetailContent() {
         {/* MATCHES TAB */}
         {tab === 'matches' && (
           <div className="max-w-2xl mx-auto space-y-4">
-            {isAuthenticated && (
+            {canOperateEvent && (
               <div className="bg-green-50 rounded-xl p-4 border border-green-200">
                 <h2 className="font-bold text-gray-800 mb-3">Generate Match</h2>
                 <p className="text-xs text-gray-500 mb-3">
@@ -623,7 +646,7 @@ export default function EventDetailContent() {
                           onScoreUpdate={handleScoreUpdate}
                           onEdit={handleEditMatch}
                           onDelete={handleDeleteMatch}
-                          readOnly={!isAuthenticated}
+                          readOnly={!canOperateEvent}
                         />
                       ))
                     )}
@@ -673,7 +696,7 @@ export default function EventDetailContent() {
       </main>
 
       {/* Import Modal */}
-      {importModal && (
+      {importModal && canOperateEvent && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between">
@@ -710,7 +733,7 @@ export default function EventDetailContent() {
         </div>
       )}
 
-      {matchModalOpen && event && (
+      {matchModalOpen && event && canOperateEvent && (
         <MatchEditorModal
           matchType={event.matchType}
           courts={event.courts}

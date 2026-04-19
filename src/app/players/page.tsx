@@ -56,7 +56,7 @@ function buildMatchCountMap(matches: Match[]) {
 
 export default function PlayersPage() {
   const router = useRouter();
-  const { isAuthenticated, isReady } = useAuth();
+  const { activeClub, isAuthenticated, isReady } = useAuth();
   const [players, setPlayers] = useState<Participant[]>([]);
   const [eventParticipants, setEventParticipants] = useState<EventParticipant[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -72,9 +72,9 @@ export default function PlayersPage() {
     try {
       setError(null);
       const [participantData, eventParticipantData, matchData] = await Promise.all([
-        getParticipants(),
-        getAllEventParticipants(),
-        getAllMatches(),
+        getParticipants(activeClub?.id ?? ''),
+        getAllEventParticipants(activeClub?.id ?? ''),
+        getAllMatches(activeClub?.id ?? ''),
       ]);
 
       setPlayers(participantData);
@@ -85,7 +85,7 @@ export default function PlayersPage() {
     } finally {
       setLoaded(true);
     }
-  }, []);
+  }, [activeClub?.id]);
 
   useEffect(() => {
     if (!isReady) {
@@ -97,14 +97,27 @@ export default function PlayersPage() {
       return;
     }
 
+    if (!activeClub) {
+      router.replace('/clubs/new?next=/players');
+      return;
+    }
+
+    setLoaded(false);
     void loadData();
-  }, [isAuthenticated, isReady, loadData, router]);
+  }, [activeClub, isAuthenticated, isReady, loadData, router]);
 
   const handleCreatePlayer = async (participant: Participant) => {
+    if (!activeClub) {
+      return;
+    }
+
     try {
       setCreatingPlayer(true);
       setError(null);
-      await saveParticipant(participant);
+      await saveParticipant({
+        ...participant,
+        clubId: activeClub.id,
+      });
       setShowCreateForm(false);
       await loadData();
     } catch (err) {
@@ -155,7 +168,7 @@ export default function PlayersPage() {
     }
   };
 
-  if (!isReady || !isAuthenticated) {
+  if (!isReady || !isAuthenticated || !activeClub) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 flex items-center justify-center">
         <div className="text-green-100 text-lg font-semibold">Loading...</div>
@@ -184,7 +197,7 @@ export default function PlayersPage() {
                 Player Directory
               </h1>
               <p className="text-green-100 text-sm mt-2 max-w-2xl">
-                Add and edit shared player data here. Permanent delete is only allowed when the player has never been used in a match.
+                {activeClub.tagName} · {activeClub.name}. Permanent delete is only allowed when the player has never been used in a match.
               </p>
             </div>
             <button

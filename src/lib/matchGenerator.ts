@@ -50,6 +50,7 @@ function getCourtForMatch(courts: string[], existingMatches: Match[]): string {
 export function generateAmericanoMatch(
   presentIds: string[],
   existingMatches: Match[],
+  clubId: string,
   eventId: string,
   matchType: 'single' | 'double',
   courts: string[]
@@ -135,6 +136,7 @@ export function generateAmericanoMatch(
 
   return {
     id: uuidv4(),
+    clubId,
     eventId,
     round,
     court: getCourtForMatch(courts, existingMatches),
@@ -155,6 +157,7 @@ export function generateMexicanoMatch(
   presentIds: string[],
   existingMatches: Match[],
   stats: PlayerStats[],
+  clubId: string,
   eventId: string,
   matchType: 'single' | 'double',
   courts: string[]
@@ -191,6 +194,7 @@ export function generateMexicanoMatch(
 
   return {
     id: uuidv4(),
+    clubId,
     eventId,
     round,
     court: getCourtForMatch(courts, existingMatches),

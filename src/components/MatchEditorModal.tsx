@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Match, Participant } from '@/types';
 
@@ -40,7 +40,7 @@ export default function MatchEditorModal({
   onSave,
 }: MatchEditorModalProps) {
   const teamSize = matchType === 'single' ? 1 : 2;
-  const availableCourts = courts.length > 0 ? courts : ['Court 1'];
+  const availableCourts = useMemo(() => (courts.length > 0 ? courts : ['Court 1']), [courts]);
   const [round, setRound] = useState((match?.round ?? nextRound).toString());
   const [court, setCourt] = useState(match?.court ?? availableCourts[0]);
   const [teamA, setTeamA] = useState<string[]>(() => buildSelections(match?.teamA, teamSize));

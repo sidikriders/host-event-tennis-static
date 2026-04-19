@@ -1,6 +1,6 @@
 # Tennis Event Host
 
-Static Next.js app for managing tennis Americano and Mexicano events. Events, participants, attendance membership, and matches are stored in Supabase.
+Static Next.js app for managing tennis Americano and Mexicano events. Clubs, events, participants, attendance membership, and matches are stored in Supabase.
 
 ## Local development
 
@@ -72,18 +72,52 @@ The workflow also caches `.next/cache` to speed up rebuilds.
 
 ## Notes
 
-- Events, participants, event attendance membership, and matches are stored in Supabase and shared across browsers that use the same project.
-- Participants act as the shared player master data. Admins can add and edit player records centrally, and permanent delete is allowed only when a player has no match history.
+- Clubs are the tenancy boundary. Each user can belong to multiple clubs, select an active club, and see only that club's dashboard data.
+- Events belong to a club and record `created_by_id` for audit.
+- Participants belong to a club. Members can operate event workflows inside their club, while only club `owner` and `admin` can create, edit, or delete events.
+- Event detail pages stay public for read-only access, while admin controls remain private behind authenticated club membership and RLS.
 - Player stats are derived from participants plus matches, so there is no separate `player_stats` table.
 - GitHub Pages still serves only the static frontend; Supabase provides the shared database.
 
 ## Supabase SQL
 
-Run this in the Supabase SQL Editor:
+Run these files in the Supabase SQL Editor in this order:
+
+```text
+supabase/clubs.sql
+supabase/profiles.sql
+supabase/events.sql
+supabase/participants.sql
+supabase/event_participants.sql
+supabase/matches.sql
+```
+
+If you already have production data, backfill the new club columns for existing rows before enforcing any not-null requirements on old records.
+
+For a fresh setup, the core schema now includes:
 
 ```sql
+create table if not exists public.clubs (
+	id uuid primary key,
+	name text not null,
+	tag_name text not null,
+	description text not null default '',
+	created_by_id uuid not null references auth.users(id),
+	created_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.club_members (
+	club_id uuid not null references public.clubs(id) on delete cascade,
+	user_id uuid not null references auth.users(id) on delete cascade,
+	role text not null check (role in ('owner', 'admin', 'member')),
+	created_at timestamptz not null default timezone('utc', now()),
+	primary key (club_id, user_id)
+);
+
 create table if not exists public.events (
 	id uuid primary key,
+	club_id uuid not null references public.clubs(id),
+	created_by_id uuid not null references auth.users(id),
 	name text not null,
 	date date not null,
 	location text not null,
@@ -93,6 +127,7 @@ create table if not exists public.events (
 
 create table if not exists public.participants (
 	id uuid primary key,
+	club_id uuid not null references public.clubs(id),
 	name text not null,
 	gender text not null check (gender in ('male', 'female', 'other')),
 	note text not null default '',
@@ -109,6 +144,7 @@ create table if not exists public.event_participants (
 
 create table if not exists public.matches (
 	id uuid primary key,
+	club_id uuid not null references public.clubs(id),
 	event_id uuid not null references public.events(id) on delete restrict,
 	round integer not null check (round > 0),
 	team_a text[] not null,
