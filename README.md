@@ -92,6 +92,8 @@ supabase/event_participants.sql
 supabase/matches.sql
 ```
 
+If you enable live match updates in the app, rerun `supabase/matches.sql` so the `matches` table is added to the `supabase_realtime` publication.
+
 If you already have production data, backfill the new club columns for existing rows before enforcing any not-null requirements on old records.
 
 For a fresh setup, the core schema now includes:

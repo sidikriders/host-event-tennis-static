@@ -62,6 +62,13 @@ create index if not exists matches_event_round_idx on public.matches(event_id, r
 
 alter table public.matches enable row level security;
 
+do $$
+begin
+  alter publication supabase_realtime add table public.matches;
+exception
+  when duplicate_object then null;
+end $$;
+
 drop policy if exists "Public can read matches" on public.matches;
 drop policy if exists "Club members can insert matches" on public.matches;
 drop policy if exists "Club members can update matches" on public.matches;
