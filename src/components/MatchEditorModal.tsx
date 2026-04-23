@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { Match, Participant } from '@/types';
+import { EventMatchRule, Match, Participant } from '@/types';
+import { validateMatchAgainstRules } from '@/lib/matchGenerator';
 
 export interface MatchEditorPayload {
   round: number;
@@ -18,6 +19,7 @@ interface MatchEditorModalProps {
   matchType: 'single' | 'double';
   courts: string[];
   participants: Participant[];
+  matchRules?: EventMatchRule[];
   nextRound: number;
   match?: Match | null;
   saving: boolean;
@@ -33,6 +35,7 @@ export default function MatchEditorModal({
   matchType,
   courts,
   participants,
+  matchRules = [],
   nextRound,
   match,
   saving,
@@ -62,6 +65,15 @@ export default function MatchEditorModal({
   }, [availableCourts, match, nextRound, teamSize]);
 
   const selectedIds = [...teamA, ...teamB].filter(Boolean);
+  const normalizedTeamA = teamA.filter(Boolean);
+  const normalizedTeamB = teamB.filter(Boolean);
+  const liveRuleViolation = useMemo(() => {
+    if (normalizedTeamA.length !== teamSize || normalizedTeamB.length !== teamSize) {
+      return null;
+    }
+
+    return validateMatchAgainstRules(normalizedTeamA, normalizedTeamB, matchRules);
+  }, [matchRules, normalizedTeamA, normalizedTeamB, teamSize]);
 
   const getOptions = (currentValue: string) =>
     participants.filter((participant) => {
@@ -102,8 +114,6 @@ export default function MatchEditorModal({
       return;
     }
 
-    const normalizedTeamA = teamA.filter(Boolean);
-    const normalizedTeamB = teamB.filter(Boolean);
     const requiredPlayers = teamSize * 2;
     const uniquePlayers = new Set([...normalizedTeamA, ...normalizedTeamB]);
 
@@ -114,6 +124,13 @@ export default function MatchEditorModal({
 
     if (uniquePlayers.size !== requiredPlayers) {
       setError('Each player can only be used once in a match.');
+      return;
+    }
+
+    const ruleViolation = validateMatchAgainstRules(normalizedTeamA, normalizedTeamB, matchRules);
+
+    if (ruleViolation) {
+      setError(ruleViolation.message);
       return;
     }
 
@@ -179,6 +196,12 @@ export default function MatchEditorModal({
             {error && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
+              </div>
+            )}
+
+            {liveRuleViolation && !error && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Warning: {liveRuleViolation.message}
               </div>
             )}
 

@@ -1,6 +1,11 @@
 import { EventMatchRule, Match, PlayerStats } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
+export interface MatchRuleViolation {
+  rule: EventMatchRule;
+  message: string;
+}
+
 function normalizeCourts(courts: string[]): string[] {
   const nextCourts = courts.map((court) => court.trim()).filter(Boolean);
   return nextCourts.length > 0 ? nextCourts : ['Court 1'];
@@ -63,7 +68,7 @@ function findMatchRuleViolation(
   teamA: string[],
   teamB: string[],
   matchRules: EventMatchRule[]
-): EventMatchRule | null {
+): MatchRuleViolation | null {
   const teammatePairs = new Set([...buildPairKeys(teamA), ...buildPairKeys(teamB)]);
   const opponentPairs = new Set(
     teamA.flatMap((playerA) => teamB.map((playerB) => getPairKey(playerA, playerB)))
@@ -74,19 +79,36 @@ function findMatchRuleViolation(
     const pairKey = getPairKey(rule.participant1Id, rule.participant2Id);
 
     if (rule.ruleType === 'avoid_teammate' && teammatePairs.has(pairKey)) {
-      return rule;
+      return {
+        rule,
+        message: 'Selected players include a pair that must not be on the same team.',
+      };
     }
 
     if (rule.ruleType === 'avoid_opponent' && opponentPairs.has(pairKey)) {
-      return rule;
+      return {
+        rule,
+        message: 'Selected players include a pair that must not face each other.',
+      };
     }
 
     if (rule.ruleType === 'avoid_same_match' && sameMatchPairs.has(pairKey)) {
-      return rule;
+      return {
+        rule,
+        message: 'Selected players include a pair that must not appear in the same match.',
+      };
     }
   }
 
   return null;
+}
+
+export function validateMatchAgainstRules(
+  teamA: string[],
+  teamB: string[],
+  matchRules: EventMatchRule[]
+): MatchRuleViolation | null {
+  return findMatchRuleViolation(teamA, teamB, matchRules);
 }
 
 function getRecentTeammatePairs(lastMatch: Match | undefined): Set<string> {

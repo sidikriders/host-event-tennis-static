@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
-import { Event, Match, Participant } from '@/types';
+import { Event, EventMatchRule, Match, Participant } from '@/types';
 import MatchCard from '@/components/MatchCard';
 import MatchEditorModal, { MatchEditorPayload } from '@/components/MatchEditorModal';
 import { deleteMatch, getEventMatchRules, getMatches, saveMatch, updateMatch } from '@/lib/storage';
-import { generateAmericanoMatch, getNextGeneratedRound } from '@/lib/matchGenerator';
+import { generateAmericanoMatch, getNextGeneratedRound, validateMatchAgainstRules } from '@/lib/matchGenerator';
 import { getSupabaseClient } from '@/lib/supabase';
 
 interface EventMatchesTabProps {
@@ -109,6 +109,7 @@ export default function EventMatchesTab({
   onMatchesChange,
 }: EventMatchesTabProps) {
   const [matches, setMatches] = useState<Match[]>([]);
+  const [matchRules, setMatchRules] = useState<EventMatchRule[]>([]);
   const [generatingMatch, setGeneratingMatch] = useState(false);
   const [selectedCourt, setSelectedCourt] = useState<'all' | string>('all');
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
@@ -123,6 +124,16 @@ export default function EventMatchesTab({
   useEffect(() => {
     void loadMatches();
   }, [loadMatches]);
+
+  const loadMatchRules = useCallback(async () => {
+    const nextRules = await getEventMatchRules(eventId);
+    setMatchRules(nextRules);
+    return nextRules;
+  }, [eventId]);
+
+  useEffect(() => {
+    void loadMatchRules();
+  }, [loadMatchRules]);
 
   useEffect(() => {
     onMatchesChange(matches);
@@ -182,7 +193,7 @@ export default function EventMatchesTab({
 
     try {
       setGeneratingMatch(true);
-      const matchRules = await getEventMatchRules(eventId);
+      const latestMatchRules = await loadMatchRules();
       const nextMatch = generateAmericanoMatch(
         presentIds,
         matches,
@@ -190,7 +201,7 @@ export default function EventMatchesTab({
         eventId,
         event.matchType,
         event.courts,
-        matchRules
+        latestMatchRules
       );
 
       if (!nextMatch) {
@@ -238,6 +249,12 @@ export default function EventMatchesTab({
     setSavingMatch(true);
 
     try {
+      const ruleViolation = validateMatchAgainstRules(payload.teamA, payload.teamB, matchRules);
+
+      if (ruleViolation) {
+        throw new Error(ruleViolation.message);
+      }
+
       let nextMatch: Match;
 
       if (editingMatch) {
@@ -452,6 +469,7 @@ export default function EventMatchesTab({
           matchType={event.matchType}
           courts={event.courts}
           participants={matchEditorParticipants}
+          matchRules={matchRules}
           nextRound={nextRound}
           match={editingMatch}
           saving={savingMatch}
