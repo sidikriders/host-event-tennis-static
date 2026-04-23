@@ -171,11 +171,53 @@ export default function EventDetailContent() {
       setError(err instanceof Error ? err.message : 'Failed to update attendance.');
     }
   };
-
-
   const exportElementAsImage = async (element: HTMLElement, filename: string) => {
     const html2canvas = (await import('html2canvas')).default;
-    const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+    const scrollContainer = element.querySelector<HTMLElement>('[data-export-scroll-container]');
+    const tableElement = element.querySelector<HTMLElement>('[data-export-table]');
+
+    const exportWidth = Math.ceil(
+      Math.max(
+        element.scrollWidth,
+        element.offsetWidth,
+        scrollContainer?.scrollWidth ?? 0,
+        scrollContainer?.offsetWidth ?? 0,
+        tableElement?.scrollWidth ?? 0,
+        tableElement?.offsetWidth ?? 0,
+      )
+    );
+    const exportHeight = Math.ceil(Math.max(element.scrollHeight, element.offsetHeight));
+
+    const canvas = await html2canvas(element, {
+      backgroundColor: '#ffffff',
+      height: exportHeight,
+      scale: 2,
+      useCORS: true,
+      width: exportWidth,
+      windowHeight: exportHeight,
+      windowWidth: exportWidth,
+      onclone: (clonedDocument) => {
+        const clonedElement = clonedDocument.querySelector<HTMLElement>('[data-export-root]');
+        if (clonedElement) {
+          clonedElement.style.width = `${exportWidth}px`;
+          clonedElement.style.maxWidth = 'none';
+          clonedElement.style.overflow = 'visible';
+        }
+
+        const scrollContainer = clonedDocument.querySelector<HTMLElement>('[data-export-scroll-container]');
+        if (scrollContainer) {
+          scrollContainer.style.overflow = 'visible';
+          scrollContainer.style.width = `${exportWidth}px`;
+          scrollContainer.style.maxWidth = 'none';
+        }
+
+        const clonedTable = clonedDocument.querySelector<HTMLElement>('[data-export-table]');
+        if (clonedTable) {
+          clonedTable.style.width = 'max-content';
+          clonedTable.style.minWidth = '100%';
+        }
+      },
+    });
     const link = document.createElement('a');
     link.download = filename;
     link.href = canvas.toDataURL('image/png');

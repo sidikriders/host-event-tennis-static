@@ -21,15 +21,19 @@ const ScoreTable = forwardRef<HTMLDivElement, ScoreTableProps>(
     }
 
     return (
-      <div ref={ref} className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-200">
+      <div
+        ref={ref}
+        data-export-root
+        className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-200"
+      >
         {eventName && (
           <div className="bg-gradient-to-r from-green-700 to-green-500 px-5 py-4">
             <h2 className="text-white font-bold text-xl text-center">🎾 {eventName}</h2>
             <p className="text-green-100 text-sm text-center">Score Table</p>
           </div>
         )}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div data-export-scroll-container className="overflow-x-auto">
+          <table data-export-table className="min-w-max w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
                 <th className="px-4 py-3 text-left">Rank</th>
