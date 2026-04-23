@@ -89,6 +89,7 @@ supabase/profiles.sql
 supabase/events.sql
 supabase/participants.sql
 supabase/event_participants.sql
+supabase/event_match_rules.sql
 supabase/matches.sql
 ```
 
