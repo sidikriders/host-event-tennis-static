@@ -1,4 +1,4 @@
-import { Club, Event, EventParticipant, Match, Participant } from '@/types';
+import { Club, Event, EventMatchRule, EventParticipant, Match, Participant } from '@/types';
 import { getSupabaseClient } from '@/lib/supabase';
 
 type ClubRow = {
@@ -50,6 +50,17 @@ type EventParticipantRow = {
   event_id: string;
   participant_id: string;
   present: boolean;
+};
+
+type EventMatchRuleRow = {
+  id: string;
+  club_id: string;
+  event_id: string;
+  rule_type: EventMatchRule['ruleType'];
+  participant_1_id: string;
+  participant_2_id: string;
+  created_by_id: string;
+  created_at: string;
 };
 
 function normalizeCourts(courts: string[] | null | undefined): string[] {
@@ -170,6 +181,40 @@ function mapEventParticipantToRow(eventParticipant: EventParticipant): EventPart
     event_id: eventParticipant.eventId,
     participant_id: eventParticipant.participantId,
     present: eventParticipant.present,
+  };
+}
+
+function normalizeRuleParticipantIds(participant1Id: string, participant2Id: string) {
+  return participant1Id < participant2Id
+    ? { participant1Id, participant2Id }
+    : { participant1Id: participant2Id, participant2Id: participant1Id };
+}
+
+function mapEventMatchRuleRow(row: EventMatchRuleRow): EventMatchRule {
+  return {
+    id: row.id,
+    clubId: row.club_id,
+    eventId: row.event_id,
+    ruleType: row.rule_type,
+    participant1Id: row.participant_1_id,
+    participant2Id: row.participant_2_id,
+    createdById: row.created_by_id,
+    createdAt: row.created_at,
+  };
+}
+
+function mapEventMatchRuleToRow(rule: EventMatchRule): EventMatchRuleRow {
+  const normalizedPair = normalizeRuleParticipantIds(rule.participant1Id, rule.participant2Id);
+
+  return {
+    id: rule.id,
+    club_id: rule.clubId,
+    event_id: rule.eventId,
+    rule_type: rule.ruleType,
+    participant_1_id: normalizedPair.participant1Id,
+    participant_2_id: normalizedPair.participant2Id,
+    created_by_id: rule.createdById,
+    created_at: rule.createdAt,
   };
 }
 
@@ -430,6 +475,41 @@ export async function removeEventParticipant(eventId: string, participantId: str
 
   if (error) {
     throw new Error(`Failed to remove event participant: ${error.message}`);
+  }
+}
+
+export async function getEventMatchRules(eventId: string): Promise<EventMatchRule[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('event_match_rules')
+    .select('id, club_id, event_id, rule_type, participant_1_id, participant_2_id, created_by_id, created_at')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to load match rules: ${error.message}`);
+  }
+
+  return ((data ?? []) as EventMatchRuleRow[]).map(mapEventMatchRuleRow);
+}
+
+export async function saveEventMatchRule(rule: EventMatchRule): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from('event_match_rules')
+    .upsert(mapEventMatchRuleToRow(rule), { onConflict: 'event_id,rule_type,participant_1_id,participant_2_id' });
+
+  if (error) {
+    throw new Error(`Failed to save match rule: ${error.message}`);
+  }
+}
+
+export async function deleteEventMatchRule(ruleId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from('event_match_rules').delete().eq('id', ruleId);
+
+  if (error) {
+    throw new Error(`Failed to delete match rule: ${error.message}`);
   }
 }
 

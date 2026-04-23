@@ -30,8 +30,9 @@ import ScoreTable from '@/components/ScoreTable';
 import ChampionsCard from '@/components/ChampionsCard';
 import { useAuth } from '@/components/AuthProvider';
 import EventMatchesTab from '@/app/events/detail/EventMatchesTab';
+import EventMatchRulesTab from '@/app/events/detail/EventMatchRulesTab';
 
-type Tab = 'participants' | 'attendance' | 'matches' | 'scoreboard';
+type Tab = 'participants' | 'attendance' | 'match-rules' | 'matches' | 'scoreboard';
 
 export default function EventDetailContent() {
   const searchParams = useSearchParams();
@@ -92,7 +93,7 @@ export default function EventDetailContent() {
   }, [reload]);
 
   useEffect(() => {
-    if (!canOperateEvent && (tab === 'participants' || tab === 'attendance')) {
+    if (!canOperateEvent && (tab === 'participants' || tab === 'attendance' || tab === 'match-rules')) {
       setTab('matches');
     }
   }, [canOperateEvent, tab]);
@@ -252,6 +253,7 @@ export default function EventDetailContent() {
     ? [
         { key: 'participants', label: 'Players', emoji: '👥' },
         { key: 'attendance', label: 'Attendance', emoji: '✅' },
+        { key: 'match-rules', label: 'Match Rules', emoji: '📏' },
         { key: 'matches', label: 'Matches', emoji: '🎾' },
         { key: 'scoreboard', label: 'Scoreboard', emoji: '🏆' },
       ]
@@ -394,6 +396,17 @@ export default function EventDetailContent() {
               onToggle={handleAttendanceToggle}
             />
           </div>
+        )}
+
+        {tab === 'match-rules' && (
+          <EventMatchRulesTab
+            eventId={eventId}
+            clubId={event.clubId}
+            participants={eventParticipantObjects}
+            canOperateEvent={canOperateEvent}
+            isActive={tab === 'match-rules'}
+            currentUserId={user?.id ?? null}
+          />
         )}
 
         {/* MATCHES TAB */}

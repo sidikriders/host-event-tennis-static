@@ -45,6 +45,19 @@ export interface EventParticipant {
   present: boolean;
 }
 
+export type EventMatchRuleType = 'avoid_teammate' | 'avoid_opponent' | 'avoid_same_match';
+
+export interface EventMatchRule {
+  id: string;
+  clubId: string;
+  eventId: string;
+  ruleType: EventMatchRuleType;
+  participant1Id: string;
+  participant2Id: string;
+  createdById: string;
+  createdAt: string;
+}
+
 export interface Match {
   id: string;
   clubId: string;
