@@ -1,4 +1,4 @@
-import { Match, PlayerStats } from '@/types';
+import { EventMatchRule, Match, PlayerStats } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
 function normalizeCourts(courts: string[]): string[] {
@@ -43,6 +43,98 @@ function getCourtForMatch(courts: string[], existingMatches: Match[]): string {
   }, availableCourts[0]);
 }
 
+function getPairKey(leftId: string, rightId: string): string {
+  return leftId < rightId ? `${leftId}:${rightId}` : `${rightId}:${leftId}`;
+}
+
+function buildPairKeys(playerIds: string[]): string[] {
+  const pairKeys: string[] = [];
+
+  for (let leftIndex = 0; leftIndex < playerIds.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < playerIds.length; rightIndex += 1) {
+      pairKeys.push(getPairKey(playerIds[leftIndex], playerIds[rightIndex]));
+    }
+  }
+
+  return pairKeys;
+}
+
+function findMatchRuleViolation(
+  teamA: string[],
+  teamB: string[],
+  matchRules: EventMatchRule[]
+): EventMatchRule | null {
+  const teammatePairs = new Set([...buildPairKeys(teamA), ...buildPairKeys(teamB)]);
+  const opponentPairs = new Set(
+    teamA.flatMap((playerA) => teamB.map((playerB) => getPairKey(playerA, playerB)))
+  );
+  const sameMatchPairs = new Set(buildPairKeys([...teamA, ...teamB]));
+
+  for (const rule of matchRules) {
+    const pairKey = getPairKey(rule.participant1Id, rule.participant2Id);
+
+    if (rule.ruleType === 'avoid_teammate' && teammatePairs.has(pairKey)) {
+      return rule;
+    }
+
+    if (rule.ruleType === 'avoid_opponent' && opponentPairs.has(pairKey)) {
+      return rule;
+    }
+
+    if (rule.ruleType === 'avoid_same_match' && sameMatchPairs.has(pairKey)) {
+      return rule;
+    }
+  }
+
+  return null;
+}
+
+function getRecentTeammatePairs(lastMatch: Match | undefined): Set<string> {
+  if (!lastMatch) {
+    return new Set<string>();
+  }
+
+  return new Set([...buildPairKeys(lastMatch.teamA), ...buildPairKeys(lastMatch.teamB)]);
+}
+
+function getCombinationGroups(playerIds: string[], size: number): string[][] {
+  const groups: string[][] = [];
+
+  function walk(startIndex: number, currentGroup: string[]) {
+    if (currentGroup.length === size) {
+      groups.push([...currentGroup]);
+      return;
+    }
+
+    for (let index = startIndex; index <= playerIds.length - (size - currentGroup.length); index += 1) {
+      currentGroup.push(playerIds[index]);
+      walk(index + 1, currentGroup);
+      currentGroup.pop();
+    }
+  }
+
+  walk(0, []);
+  return groups;
+}
+
+function getAmericanoArrangements(selectedIds: string[], matchType: 'single' | 'double'): [string[], string[]][] {
+  if (matchType === 'single') {
+    return [[[selectedIds[0]], [selectedIds[1]]]];
+  }
+
+  return [
+    [[selectedIds[0], selectedIds[2]], [selectedIds[1], selectedIds[3]]],
+    [[selectedIds[0], selectedIds[3]], [selectedIds[1], selectedIds[2]]],
+    [[selectedIds[0], selectedIds[1]], [selectedIds[2], selectedIds[3]]],
+  ];
+}
+
+function getRecentTeammateScore(team: string[], recentTeammatePairs: Set<string>): number {
+  return buildPairKeys(team).reduce((score, pairKey) => {
+    return score + (recentTeammatePairs.has(pairKey) ? 1 : 0);
+  }, 0);
+}
+
 /**
  * Americano: pick players with the fewest matches played first,
  * avoid re-pairing players who were on the same team in the previous round.
@@ -53,7 +145,8 @@ export function generateAmericanoMatch(
   clubId: string,
   eventId: string,
   matchType: 'single' | 'double',
-  courts: string[]
+  courts: string[],
+  matchRules: EventMatchRule[] = []
 ): Match | null {
   const teamSize = matchType === 'single' ? 1 : 2;
   const required = teamSize * 2;
@@ -76,18 +169,8 @@ export function generateAmericanoMatch(
     }
   }
 
-  // Find the last match to avoid re-pairing teammates
   const lastMatch = existingMatches[existingMatches.length - 1];
-  const recentTeammates = new Set<string>();
-  if (lastMatch) {
-    // pairs from last match that shouldn't play together again immediately
-    if (lastMatch.teamA.length > 1) {
-      lastMatch.teamA.forEach((id) => recentTeammates.add(id));
-    }
-    if (lastMatch.teamB.length > 1) {
-      lastMatch.teamB.forEach((id) => recentTeammates.add(id));
-    }
-  }
+  const recentTeammatePairs = getRecentTeammatePairs(lastMatch);
 
   // Sort by play count ascending; within the same count prefer players who
   // waited longer (lower lastRoundPlayed = sat out more rounds); randomise
@@ -101,35 +184,31 @@ export function generateAmericanoMatch(
     return Math.random() - 0.5;
   });
 
-  // Select the required number of players with fewest play counts
-  const selected = sorted.slice(0, required);
-  if (selected.length < required) return null;
+  let teamA: string[] | null = null;
+  let teamB: string[] | null = null;
 
-  // For doubles, try to avoid pairs that played together last match
-  let teamA: string[];
-  let teamB: string[];
+  for (const selectedIds of getCombinationGroups(sorted, required)) {
+    const rankedArrangements = getAmericanoArrangements(selectedIds, matchType)
+      .map(([candidateTeamA, candidateTeamB]) => ({
+        teamA: candidateTeamA,
+        teamB: candidateTeamB,
+        violation: findMatchRuleViolation(candidateTeamA, candidateTeamB, matchRules),
+        recentScore:
+          getRecentTeammateScore(candidateTeamA, recentTeammatePairs)
+          + getRecentTeammateScore(candidateTeamB, recentTeammatePairs),
+      }))
+      .filter((candidate) => candidate.violation === null)
+      .sort((left, right) => left.recentScore - right.recentScore);
 
-  if (matchType === 'single') {
-    teamA = [selected[0]];
-    teamB = [selected[1]];
-  } else {
-    // Try pairing: 0+2 vs 1+3, then 0+3 vs 1+2, then 0+1 vs 2+3
-    const arrangements: [string[], string[]][] = [
-      [[selected[0], selected[2]], [selected[1], selected[3]]],
-      [[selected[0], selected[3]], [selected[1], selected[2]]],
-      [[selected[0], selected[1]], [selected[2], selected[3]]],
-    ];
+    if (rankedArrangements.length > 0) {
+      teamA = rankedArrangements[0].teamA;
+      teamB = rankedArrangements[0].teamB;
+      break;
+    }
+  }
 
-    const pairScore = (pair: string[]) => {
-      // lower score = better (didn't play together recently)
-      return pair.every((p) => !recentTeammates.has(p)) ? 0 : 1;
-    };
-
-    arrangements.sort(([tA1, tB1], [tA2, tB2]) => {
-      return pairScore(tA1) + pairScore(tB1) - (pairScore(tA2) + pairScore(tB2));
-    });
-
-    [teamA, teamB] = arrangements[0];
+  if (!teamA || !teamB) {
+    return null;
   }
 
   const round = getNextGeneratedRound(courts, existingMatches);

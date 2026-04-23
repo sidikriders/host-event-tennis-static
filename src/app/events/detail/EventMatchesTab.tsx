@@ -7,7 +7,7 @@ import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { Event, Match, Participant } from '@/types';
 import MatchCard from '@/components/MatchCard';
 import MatchEditorModal, { MatchEditorPayload } from '@/components/MatchEditorModal';
-import { deleteMatch, getMatches, saveMatch, updateMatch } from '@/lib/storage';
+import { deleteMatch, getEventMatchRules, getMatches, saveMatch, updateMatch } from '@/lib/storage';
 import { generateAmericanoMatch, getNextGeneratedRound } from '@/lib/matchGenerator';
 import { getSupabaseClient } from '@/lib/supabase';
 
@@ -180,23 +180,28 @@ export default function EventMatchesTab({
       return;
     }
 
-    const nextMatch = generateAmericanoMatch(
-      presentIds,
-      matches,
-      event.clubId,
-      eventId,
-      event.matchType,
-      event.courts
-    );
-
-    if (!nextMatch) {
-      return;
-    }
-
     try {
       setGeneratingMatch(true);
+      const matchRules = await getEventMatchRules(eventId);
+      const nextMatch = generateAmericanoMatch(
+        presentIds,
+        matches,
+        event.clubId,
+        eventId,
+        event.matchType,
+        event.courts,
+        matchRules
+      );
+
+      if (!nextMatch) {
+        alert('No valid match can be generated with the current players and match rules.');
+        return;
+      }
+
       await saveMatch(nextMatch);
       setMatches((currentMatches) => upsertMatch(currentMatches, nextMatch));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to generate match.');
     } finally {
       setGeneratingMatch(false);
     }
