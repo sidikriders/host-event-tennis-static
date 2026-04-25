@@ -9,10 +9,9 @@ import {
   deleteEvent,
   getEventDependencySummary,
 } from '@/lib/storage';
+import { isEventActive } from '@/lib/eventDateTime';
 import EventCard from '@/components/EventCard';
 import { useAuth } from '@/components/AuthProvider';
-
-const EVENTS_PER_PAGE = 10;
 
 type EventDependencyState = Record<
   string,
@@ -38,7 +37,6 @@ export default function HomePage() {
   } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [eventDependencies, setEventDependencies] = useState<EventDependencyState>({});
-  const [currentPage, setCurrentPage] = useState(1);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,10 +83,6 @@ export default function HomePage() {
         if (!cancelled) {
           setEvents(data);
           setEventDependencies(Object.fromEntries(dependencyEntries));
-          setCurrentPage((current) => {
-            const totalPages = Math.max(1, Math.ceil(data.length / EVENTS_PER_PAGE));
-            return Math.min(current, totalPages);
-          });
         }
       } catch (err) {
         if (!cancelled) {
@@ -112,12 +106,7 @@ export default function HomePage() {
     try {
       setError(null);
       await deleteEvent(id);
-      setEvents((current) => {
-        const nextEvents = current.filter((event) => event.id !== id);
-        const totalPages = Math.max(1, Math.ceil(nextEvents.length / EVENTS_PER_PAGE));
-        setCurrentPage((currentPageValue) => Math.min(currentPageValue, totalPages));
-        return nextEvents;
-      });
+      setEvents((current) => current.filter((event) => event.id !== id));
       setEventDependencies((current) => {
         const next = { ...current };
         delete next[id];
@@ -136,10 +125,13 @@ export default function HomePage() {
     );
   }
 
-  const totalPages = Math.max(1, Math.ceil(events.length / EVENTS_PER_PAGE));
-  const startIndex = (currentPage - 1) * EVENTS_PER_PAGE;
-  const paginatedEvents = events.slice(startIndex, startIndex + EVENTS_PER_PAGE);
   const clubCount = memberships.length;
+  const activeEvents = [...events]
+    .filter((event) => isEventActive(event))
+    .sort((left, right) => new Date(left.timeStart).getTime() - new Date(right.timeStart).getTime());
+  const pastEvents = [...events]
+    .filter((event) => !isEventActive(event))
+    .sort((left, right) => new Date(right.timeEnd).getTime() - new Date(left.timeEnd).getTime());
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700">
@@ -267,43 +259,55 @@ export default function HomePage() {
                 {activeClub?.tagName} Events ({events.length})
               </h2>
               <span className="text-xs font-medium text-green-300">
-                Page {currentPage} of {totalPages}
+                {activeEvents.length} active · {pastEvents.length} past
               </span>
             </div>
-            {paginatedEvents.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                participantCount={eventDependencies[event.id]?.participantCount ?? 0}
-                canDelete={eventDependencies[event.id]?.canDelete ?? false}
-                canManage={isClubAdmin}
-                deleteReason={eventDependencies[event.id]?.deleteReason}
-                onDelete={handleDelete}
-              />
-            ))}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/10 px-4 py-3 text-sm text-green-50">
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                  disabled={currentPage === 1}
-                  className="rounded-full bg-white/15 px-4 py-2 font-semibold transition-colors hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Previous
-                </button>
-                <div className="text-center text-xs text-green-100">
-                  Showing {startIndex + 1}-{Math.min(startIndex + paginatedEvents.length, events.length)} of {events.length} events
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                  disabled={currentPage === totalPages}
-                  className="rounded-full bg-white/15 px-4 py-2 font-semibold transition-colors hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Next
-                </button>
+            <section className="space-y-3">
+              <div className="flex items-center justify-between rounded-2xl bg-emerald-400/15 px-4 py-3 text-sm text-emerald-50">
+                <h3 className="font-semibold">Active Events</h3>
+                <span>{activeEvents.length}</span>
               </div>
-            )}
+              {activeEvents.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 text-sm text-green-100">
+                  No active events right now.
+                </div>
+              ) : (
+                activeEvents.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    participantCount={eventDependencies[event.id]?.participantCount ?? 0}
+                    canDelete={eventDependencies[event.id]?.canDelete ?? false}
+                    canManage={isClubAdmin}
+                    deleteReason={eventDependencies[event.id]?.deleteReason}
+                    onDelete={handleDelete}
+                  />
+                ))
+              )}
+            </section>
+            <section className="space-y-3 pt-2">
+              <div className="flex items-center justify-between rounded-2xl bg-slate-500/20 px-4 py-3 text-sm text-slate-100">
+                <h3 className="font-semibold">Past Events</h3>
+                <span>{pastEvents.length}</span>
+              </div>
+              {pastEvents.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 text-sm text-green-100">
+                  No past events yet.
+                </div>
+              ) : (
+                pastEvents.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    participantCount={eventDependencies[event.id]?.participantCount ?? 0}
+                    canDelete={eventDependencies[event.id]?.canDelete ?? false}
+                    canManage={isClubAdmin}
+                    deleteReason={eventDependencies[event.id]?.deleteReason}
+                    onDelete={handleDelete}
+                  />
+                ))
+              )}
+            </section>
           </div>
         )}
       </main>

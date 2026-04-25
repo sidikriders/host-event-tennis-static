@@ -4,6 +4,8 @@ create table if not exists public.events (
   created_by_id uuid references auth.users(id) on delete restrict,
   name text not null,
   date date not null,
+  time_start timestamptz,
+  time_end timestamptz,
   location text not null,
   courts text[] not null default array['Court 1']::text[],
   match_type text not null check (match_type in ('single', 'double')),
@@ -18,6 +20,20 @@ alter table public.events
 
 alter table public.events
   add column if not exists courts text[];
+
+alter table public.events
+  add column if not exists time_start timestamptz;
+
+alter table public.events
+  add column if not exists time_end timestamptz;
+
+update public.events
+set time_start = (date::text || 'T10:00:00+07:00')::timestamptz
+where time_start is null;
+
+update public.events
+set time_end = (date::text || 'T12:00:00+07:00')::timestamptz
+where time_end is null;
 
 update public.events
 set courts = array['Court 1']::text[]
@@ -39,7 +55,21 @@ begin
   if not exists (select 1 from public.events where created_by_id is null) then
     alter table public.events alter column created_by_id set not null;
   end if;
+
+  if not exists (select 1 from public.events where time_start is null) then
+    alter table public.events alter column time_start set not null;
+  end if;
+
+  if not exists (select 1 from public.events where time_end is null) then
+    alter table public.events alter column time_end set not null;
+  end if;
 end $$;
+
+alter table public.events
+  alter column time_start set default (timezone('utc', now()));
+
+alter table public.events
+  alter column time_end set default (timezone('utc', now()));
 
 alter table public.events
   drop constraint if exists events_courts_not_empty;

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Event } from '@/types';
 import { format } from 'date-fns';
+import { getEventTimeRangeLabel, isEventActive } from '@/lib/eventDateTime';
 
 interface EventCardProps {
   event: Event;
@@ -28,6 +29,8 @@ export default function EventCard({
       return event.date;
     }
   })();
+  const timeRangeLabel = getEventTimeRangeLabel(event);
+  const active = isEventActive(event);
 
   return (
     <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow border border-gray-100 overflow-hidden">
@@ -36,19 +39,29 @@ export default function EventCard({
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-bold text-gray-900 truncate">{event.name}</h3>
             <p className="text-sm text-gray-500 mt-1">📅 {formattedDate}</p>
+            <p className="text-sm text-gray-500">🕒 {timeRangeLabel}</p>
             <p className="text-sm text-gray-500">📍 {event.location}</p>
             <p className="text-sm text-gray-500">🎾 {event.courts.length} court{event.courts.length === 1 ? '' : 's'}</p>
             <p className="text-sm text-gray-500">👥 {participantCount} player{participantCount === 1 ? '' : 's'}</p>
           </div>
-          <span
-            className={`ml-3 shrink-0 px-2 py-1 rounded-full text-xs font-semibold ${
-              event.matchType === 'double'
-                ? 'bg-green-100 text-green-800'
-                : 'bg-blue-100 text-blue-800'
-            }`}
-          >
-            {event.matchType === 'double' ? '2v2' : '1v1'}
-          </span>
+          <div className="ml-3 flex shrink-0 flex-col items-end gap-2">
+            <span
+              className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                event.matchType === 'double'
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-blue-100 text-blue-800'
+              }`}
+            >
+              {event.matchType === 'double' ? '2v2' : '1v1'}
+            </span>
+            <span
+              className={`px-2 py-1 rounded-full text-[11px] font-semibold ${
+                active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              {active ? 'Active' : 'Past'}
+            </span>
+          </div>
         </div>
       </Link>
       {canManage && (

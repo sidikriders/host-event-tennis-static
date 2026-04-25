@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 import { Event } from '@/types';
 import { getEvent, saveEvent } from '@/lib/storage';
+import { buildEventDateTime, extractTimeValue, DEFAULT_EVENT_END_TIME, DEFAULT_EVENT_START_TIME } from '@/lib/eventDateTime';
 import { useAuth } from '@/components/AuthProvider';
 import EventForm from '@/components/EventForm';
 
@@ -78,6 +79,8 @@ function EditEventPageContent() {
   const handleSubmit = async (values: {
     name: string;
     date: string;
+    timeStart: string;
+    timeEnd: string;
     location: string;
     courts: string[];
     matchType: 'single' | 'double';
@@ -92,6 +95,8 @@ function EditEventPageContent() {
         ...event,
         name: values.name,
         date: values.date,
+        timeStart: buildEventDateTime(values.date, values.timeStart),
+        timeEnd: buildEventDateTime(values.date, values.timeEnd),
         location: values.location,
         courts: values.courts,
         matchType: values.matchType,
@@ -129,6 +134,8 @@ function EditEventPageContent() {
           initialValues={{
             name: event.name,
             date: event.date,
+            timeStart: extractTimeValue(event.timeStart, DEFAULT_EVENT_START_TIME),
+            timeEnd: extractTimeValue(event.timeEnd, DEFAULT_EVENT_END_TIME),
             location: event.location,
             courts: event.courts,
             matchType: event.matchType,

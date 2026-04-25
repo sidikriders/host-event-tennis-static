@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { DEFAULT_EVENT_END_TIME, DEFAULT_EVENT_START_TIME } from '@/lib/eventDateTime';
 
 type MatchType = 'single' | 'double';
 
@@ -9,6 +10,8 @@ interface EventFormProps {
   initialValues: {
     name: string;
     date: string;
+    timeStart: string;
+    timeEnd: string;
     location: string;
     courts: string[];
     matchType: MatchType;
@@ -20,6 +23,8 @@ interface EventFormProps {
   onSubmit: (values: {
     name: string;
     date: string;
+    timeStart: string;
+    timeEnd: string;
     location: string;
     courts: string[];
     matchType: MatchType;
@@ -48,6 +53,8 @@ export default function EventForm({
 }: EventFormProps) {
   const [name, setName] = useState(initialValues.name);
   const [date, setDate] = useState(initialValues.date);
+  const [timeStart, setTimeStart] = useState(initialValues.timeStart);
+  const [timeEnd, setTimeEnd] = useState(initialValues.timeEnd);
   const [location, setLocation] = useState(initialValues.location);
   const [courts, setCourts] = useState<CourtField[]>(() => {
     const initialCourts = initialValues.courts.length > 0 ? initialValues.courts : ['Court 1'];
@@ -84,7 +91,11 @@ export default function EventForm({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!name.trim() || !date || !location.trim()) {
+    if (!name.trim() || !date || !timeStart || !timeEnd || !location.trim()) {
+      return;
+    }
+
+    if (timeEnd <= timeStart) {
       return;
     }
 
@@ -96,6 +107,8 @@ export default function EventForm({
     await onSubmit({
       name: name.trim(),
       date,
+      timeStart,
+      timeEnd,
       location: location.trim(),
       courts: normalizedCourts,
       matchType,
@@ -133,6 +146,38 @@ export default function EventForm({
           required
         />
       </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Start Time *</label>
+          <input
+            type="time"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
+            value={timeStart}
+            onChange={(event) => setTimeStart(event.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">End Time *</label>
+          <input
+            type="time"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
+            value={timeEnd}
+            onChange={(event) => setTimeEnd(event.target.value)}
+            min={timeStart || DEFAULT_EVENT_START_TIME}
+            required
+          />
+        </div>
+      </div>
+      <p className="-mt-2 text-xs text-gray-500">
+        Times are saved with your local timezone. Default schedule is {DEFAULT_EVENT_START_TIME} to {DEFAULT_EVENT_END_TIME}.
+      </p>
+      {timeEnd <= timeStart && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          End time must be later than start time.
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-1">Location *</label>

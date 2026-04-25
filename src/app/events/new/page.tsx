@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 import { Event } from '@/types';
 import { saveEvent } from '@/lib/storage';
+import { buildEventDateTime, DEFAULT_EVENT_END_TIME, DEFAULT_EVENT_START_TIME } from '@/lib/eventDateTime';
 import { useAuth } from '@/components/AuthProvider';
 import EventForm from '@/components/EventForm';
 
@@ -35,6 +36,8 @@ export default function NewEventPage() {
   const handleSubmit = async (values: {
     name: string;
     date: string;
+    timeStart: string;
+    timeEnd: string;
     location: string;
     courts: string[];
     matchType: 'single' | 'double';
@@ -48,6 +51,8 @@ export default function NewEventPage() {
       createdById: user?.id ?? '',
       name: values.name,
       date: values.date,
+      timeStart: buildEventDateTime(values.date, values.timeStart),
+      timeEnd: buildEventDateTime(values.date, values.timeEnd),
       location: values.location,
       courts: values.courts,
       matchType: values.matchType,
@@ -88,6 +93,8 @@ export default function NewEventPage() {
           initialValues={{
             name: '',
             date: new Date().toISOString().split('T')[0],
+            timeStart: DEFAULT_EVENT_START_TIME,
+            timeEnd: DEFAULT_EVENT_END_TIME,
             location: '',
             courts: ['Court 1'],
             matchType: 'double',

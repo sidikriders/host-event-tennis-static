@@ -1,4 +1,5 @@
 import { Club, Event, EventMatchRule, EventParticipant, Match, Participant } from '@/types';
+import { normalizeEventDateTimes } from '@/lib/eventDateTime';
 import { getSupabaseClient } from '@/lib/supabase';
 
 type ClubRow = {
@@ -16,6 +17,8 @@ type EventRow = {
   created_by_id: string;
   name: string;
   date: string;
+  time_start: string | null;
+  time_end: string | null;
   location: string;
   courts: string[] | null;
   match_type: 'single' | 'double';
@@ -85,12 +88,20 @@ function mapClubRow(row: ClubRow): Club {
 }
 
 function mapEventRow(row: EventRow): Event {
+  const normalizedDateTimes = normalizeEventDateTimes({
+    date: row.date,
+    timeStart: row.time_start ?? undefined,
+    timeEnd: row.time_end ?? undefined,
+  });
+
   return {
     id: row.id,
     clubId: row.club_id,
     createdById: row.created_by_id,
     name: row.name,
     date: row.date,
+    timeStart: normalizedDateTimes.timeStart,
+    timeEnd: normalizedDateTimes.timeEnd,
     location: row.location,
     courts: normalizeCourts(row.courts),
     matchType: row.match_type,
@@ -99,12 +110,16 @@ function mapEventRow(row: EventRow): Event {
 }
 
 function mapEventToRow(event: Event): EventRow {
+  const normalizedDateTimes = normalizeEventDateTimes(event);
+
   return {
     id: event.id,
     club_id: event.clubId,
     created_by_id: event.createdById,
     name: event.name,
     date: event.date,
+    time_start: normalizedDateTimes.timeStart,
+    time_end: normalizedDateTimes.timeEnd,
     location: event.location,
     courts: normalizeCourts(event.courts),
     match_type: event.matchType,
@@ -272,7 +287,7 @@ export async function getEvents(clubId: string): Promise<Event[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('events')
-    .select('id, club_id, created_by_id, name, date, location, courts, match_type, created_at')
+    .select('id, club_id, created_by_id, name, date, time_start, time_end, location, courts, match_type, created_at')
     .eq('club_id', clubId)
     .order('created_at', { ascending: false });
 
@@ -287,7 +302,7 @@ export async function getEvent(id: string): Promise<Event | null> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('events')
-    .select('id, club_id, created_by_id, name, date, location, courts, match_type, created_at')
+    .select('id, club_id, created_by_id, name, date, time_start, time_end, location, courts, match_type, created_at')
     .eq('id', id)
     .maybeSingle();
 

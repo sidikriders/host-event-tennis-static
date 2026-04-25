@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { getEventTimeRangeLabel } from '@/lib/eventDateTime';
 
 import {
   Event,
@@ -254,6 +255,7 @@ export default function EventDetailContent() {
   const formattedDate = (() => {
     try { return format(new Date(event.date), 'MMMM d, yyyy'); } catch { return event.date; }
   })();
+  const timeRangeLabel = getEventTimeRangeLabel(event);
 
   const tabs: { key: Tab; label: string; emoji: string }[] = canOperateEvent
     ? [
@@ -281,6 +283,7 @@ export default function EventDetailContent() {
           <div>
             <h1 className="text-2xl font-extrabold text-white leading-tight">{event.name}</h1>
             <p className="text-green-200 text-sm mt-0.5">📅 {formattedDate} · 📍 {event.location}</p>
+            <p className="text-green-100 text-xs mt-1">🕒 {timeRangeLabel}</p>
             <p className="text-green-100 text-xs mt-1">🎾 Courts: {event.courts.join(' · ')}</p>
             <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
               event.matchType === 'double' ? 'bg-green-400 text-green-900' : 'bg-blue-300 text-blue-900'

@@ -23,6 +23,8 @@ export interface Event {
   createdById: string;
   name: string;
   date: string;
+  timeStart: string;
+  timeEnd: string;
   location: string;
   courts: string[];
   matchType: 'single' | 'double';
