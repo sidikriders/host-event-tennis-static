@@ -30,8 +30,15 @@ export function extractTimeValue(dateTime: string | null | undefined, fallback: 
     return fallback;
   }
 
-  const match = dateTime.match(/T(\d{2}:\d{2})/);
-  return match ? match[1] : fallback;
+  // datetime is UTC, format YYYY-MM-DDTHH:mm:ss+00:00, extract the time part
+  const localDate = new Date(dateTime);
+  if (isNaN(localDate.getTime())) {
+    return fallback;
+  }
+
+  const hours = padTimePart(localDate.getHours());
+  const minutes = padTimePart(localDate.getMinutes());
+  return `${hours}:${minutes}`;
 }
 
 export function getDefaultEventTimeRange(date: string): Pick<Event, 'timeStart' | 'timeEnd'> {

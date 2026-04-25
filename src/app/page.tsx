@@ -22,6 +22,8 @@ type EventDependencyState = Record<
   }
 >;
 
+type EventListFilter = 'active' | 'past';
+
 export default function HomePage() {
   const router = useRouter();
   const {
@@ -37,6 +39,7 @@ export default function HomePage() {
   } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [eventDependencies, setEventDependencies] = useState<EventDependencyState>({});
+  const [eventListFilter, setEventListFilter] = useState<EventListFilter>('active');
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,6 +135,8 @@ export default function HomePage() {
   const pastEvents = [...events]
     .filter((event) => !isEventActive(event))
     .sort((left, right) => new Date(right.timeEnd).getTime() - new Date(left.timeEnd).getTime());
+  const visibleEvents = eventListFilter === 'active' ? activeEvents : pastEvents;
+  const visibleEventsLabel = eventListFilter === 'active' ? 'Active Events' : 'Past Events';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700">
@@ -262,40 +267,47 @@ export default function HomePage() {
                 {activeEvents.length} active · {pastEvents.length} past
               </span>
             </div>
+            <div className="rounded-3xl border border-white/10 bg-white/10 p-2 backdrop-blur-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEventListFilter('active')}
+                  className={`rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
+                    eventListFilter === 'active'
+                      ? 'bg-white text-green-900 shadow-sm'
+                      : 'bg-transparent text-green-100 hover:bg-white/10'
+                  }`}
+                >
+                  Active Events ({activeEvents.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEventListFilter('past')}
+                  className={`rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
+                    eventListFilter === 'past'
+                      ? 'bg-white text-green-900 shadow-sm'
+                      : 'bg-transparent text-green-100 hover:bg-white/10'
+                  }`}
+                >
+                  Past Events ({pastEvents.length})
+                </button>
+              </div>
+            </div>
             <section className="space-y-3">
-              <div className="flex items-center justify-between rounded-2xl bg-emerald-400/15 px-4 py-3 text-sm text-emerald-50">
-                <h3 className="font-semibold">Active Events</h3>
-                <span>{activeEvents.length}</span>
+              <div className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm ${
+                eventListFilter === 'active'
+                  ? 'bg-emerald-400/15 text-emerald-50'
+                  : 'bg-slate-500/20 text-slate-100'
+              }`}>
+                <h3 className="font-semibold">{visibleEventsLabel}</h3>
+                <span>{visibleEvents.length}</span>
               </div>
-              {activeEvents.length === 0 ? (
+              {visibleEvents.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 text-sm text-green-100">
-                  No active events right now.
+                  {eventListFilter === 'active' ? 'No active events right now.' : 'No past events yet.'}
                 </div>
               ) : (
-                activeEvents.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    participantCount={eventDependencies[event.id]?.participantCount ?? 0}
-                    canDelete={eventDependencies[event.id]?.canDelete ?? false}
-                    canManage={isClubAdmin}
-                    deleteReason={eventDependencies[event.id]?.deleteReason}
-                    onDelete={handleDelete}
-                  />
-                ))
-              )}
-            </section>
-            <section className="space-y-3 pt-2">
-              <div className="flex items-center justify-between rounded-2xl bg-slate-500/20 px-4 py-3 text-sm text-slate-100">
-                <h3 className="font-semibold">Past Events</h3>
-                <span>{pastEvents.length}</span>
-              </div>
-              {pastEvents.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 text-sm text-green-100">
-                  No past events yet.
-                </div>
-              ) : (
-                pastEvents.map((event) => (
+                visibleEvents.map((event) => (
                   <EventCard
                     key={event.id}
                     event={event}
