@@ -282,14 +282,7 @@ export default function EventDetailContent() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-extrabold text-white leading-tight">{event.name}</h1>
-            <p className="text-green-200 text-sm mt-0.5">📅 {formattedDate} · 📍 {event.location}</p>
-            <p className="text-green-100 text-xs mt-1">🕒 {timeRangeLabel}</p>
-            <p className="text-green-100 text-xs mt-1">🎾 Courts: {event.courts.join(' · ')}</p>
-            <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-              event.matchType === 'double' ? 'bg-green-400 text-green-900' : 'bg-blue-300 text-blue-900'
-            }`}>
-              {event.matchType === 'double' ? '👥 Doubles' : '👤 Singles'}
-            </span>
+            
           </div>
           {canManageEvent && (
             <div className="flex items-center gap-2">
@@ -304,6 +297,17 @@ export default function EventDetailContent() {
               </div>
             </div>
           )}
+        </div>
+        <div>
+            <p className="text-green-200 text-sm mt-0.5">📅 {formattedDate}</p>
+            <p className="text-green-100 text-xs mt-1">🕒 {timeRangeLabel}</p>
+            <p className="text-green-100 text-xs mt-1">📍 {event.location}</p>
+            <p className="text-green-100 text-xs mt-1">🎾 Courts: {event.courts.join(' · ')}</p>
+            <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+              event.matchType === 'double' ? 'bg-green-400 text-green-900' : 'bg-blue-300 text-blue-900'
+            }`}>
+              {event.matchType === 'double' ? '👥 Doubles' : '👤 Singles'}
+            </span>
         </div>
       </header>
 
