@@ -176,18 +176,24 @@ export default function EventDetailContent() {
     const html2canvas = (await import('html2canvas')).default;
     const scrollContainer = element.querySelector<HTMLElement>('[data-export-scroll-container]');
     const tableElement = element.querySelector<HTMLElement>('[data-export-table]');
+    const hasScrollableExportContent = Boolean(scrollContainer || tableElement);
+    const elementRect = element.getBoundingClientRect();
 
-    const exportWidth = Math.ceil(
-      Math.max(
-        element.scrollWidth,
-        element.offsetWidth,
-        scrollContainer?.scrollWidth ?? 0,
-        scrollContainer?.offsetWidth ?? 0,
-        tableElement?.scrollWidth ?? 0,
-        tableElement?.offsetWidth ?? 0,
-      )
-    );
-    const exportHeight = Math.ceil(Math.max(element.scrollHeight, element.offsetHeight));
+    const exportWidth = hasScrollableExportContent
+      ? Math.ceil(
+          Math.max(
+            element.scrollWidth,
+            element.offsetWidth,
+            scrollContainer?.scrollWidth ?? 0,
+            scrollContainer?.offsetWidth ?? 0,
+            tableElement?.scrollWidth ?? 0,
+            tableElement?.offsetWidth ?? 0,
+          )
+        )
+      : Math.round(elementRect.width);
+    const exportHeight = hasScrollableExportContent
+      ? Math.ceil(Math.max(element.scrollHeight, element.offsetHeight))
+      : Math.round(elementRect.height);
 
     const canvas = await html2canvas(element, {
       backgroundColor: '#ffffff',
@@ -195,8 +201,8 @@ export default function EventDetailContent() {
       scale: 2,
       useCORS: true,
       width: exportWidth,
-      windowHeight: exportHeight,
-      windowWidth: exportWidth,
+      windowHeight: hasScrollableExportContent ? exportHeight : Math.ceil(window.innerHeight),
+      windowWidth: hasScrollableExportContent ? exportWidth : Math.ceil(window.innerWidth),
       onclone: (clonedDocument) => {
         const clonedElement = clonedDocument.querySelector<HTMLElement>('[data-export-root]');
         if (clonedElement) {
