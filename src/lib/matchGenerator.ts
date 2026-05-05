@@ -139,6 +139,44 @@ function getCombinationGroups(playerIds: string[], size: number): string[][] {
   return groups;
 }
 
+function chunkPlayers(playerIds: string[], size: number): string[][] {
+  const chunks: string[][] = [];
+
+  for (let index = 0; index < playerIds.length; index += size) {
+    chunks.push(playerIds.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+function getSpreadDoubleSelection(
+  playerIds: string[],
+  round: number,
+  groupCount: number
+): string[] | null {
+  const pairBuckets = chunkPlayers(playerIds, 2);
+
+  if (pairBuckets.length < 4) {
+    return null;
+  }
+
+  const spreadSpan = pairBuckets.length - 2;
+
+  if (spreadSpan <= 0) {
+    return null;
+  }
+
+  const offset = (round - groupCount - 1) % spreadSpan;
+  const firstBucket = pairBuckets[offset];
+  const secondBucket = pairBuckets[offset + 2];
+
+  if (!firstBucket || !secondBucket) {
+    return null;
+  }
+
+  return [...firstBucket, ...secondBucket];
+}
+
 function getAmericanoArrangements(selectedIds: string[], matchType: 'single' | 'double'): [string[], string[]][] {
   if (matchType === 'single') {
     return [[[selectedIds[0]], [selectedIds[1]]]];
@@ -160,6 +198,8 @@ function getRecentTeammateScore(team: string[], recentTeammatePairs: Set<string>
 /**
  * Americano: pick players with the fewest matches played first,
  * avoid re-pairing players who were on the same team in the previous round.
+ * For double matches with an exact 4-player multiple, spread the selected
+ * player block once the event has cycled through one full round of groups.
  */
 export function generateAmericanoMatch(
   presentIds: string[],
@@ -174,6 +214,8 @@ export function generateAmericanoMatch(
   const required = teamSize * 2;
 
   if (presentIds.length < required) return null;
+
+  const round = getNextGeneratedRound(courts, existingMatches);
 
   // Count how many times each player has played, and track the last round they played
   const playCounts: Record<string, number> = {};
@@ -191,6 +233,12 @@ export function generateAmericanoMatch(
     }
   }
 
+  const playCountValues = presentIds.map((id) => playCounts[id] || 0);
+  const hasUniformPlayCounts =
+    playCountValues.length > 0 &&
+    playCountValues.every((count) => count === playCountValues[0]) &&
+    playCountValues[0] > 0;
+
   const lastMatch = existingMatches[existingMatches.length - 1];
   const recentTeammatePairs = getRecentTeammatePairs(lastMatch);
 
@@ -206,10 +254,20 @@ export function generateAmericanoMatch(
     return Math.random() - 0.5;
   });
 
+  const exactDoubleRotation =
+    matchType === 'double' &&
+    presentIds.length > required &&
+    presentIds.length % required === 0 &&
+    hasUniformPlayCounts
+      ? getSpreadDoubleSelection(sorted, round, presentIds.length / required)
+      : null;
+
   let teamA: string[] | null = null;
   let teamB: string[] | null = null;
 
-  for (const selectedIds of getCombinationGroups(sorted, required)) {
+  const selectionGroups = exactDoubleRotation ? [exactDoubleRotation] : getCombinationGroups(sorted, required);
+
+  for (const selectedIds of selectionGroups) {
     const rankedArrangements = getAmericanoArrangements(selectedIds, matchType)
       .map(([candidateTeamA, candidateTeamB]) => ({
         teamA: candidateTeamA,
@@ -232,8 +290,6 @@ export function generateAmericanoMatch(
   if (!teamA || !teamB) {
     return null;
   }
-
-  const round = getNextGeneratedRound(courts, existingMatches);
 
   return {
     id: uuidv4(),
