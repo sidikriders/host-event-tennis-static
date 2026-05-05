@@ -149,7 +149,20 @@ function chunkPlayers(playerIds: string[], size: number): string[][] {
   return chunks;
 }
 
-function getSpreadDoubleSelection(
+export function hasUniformNonZeroPlayCounts(
+  presentIds: string[],
+  playCounts: Record<string, number>
+): boolean {
+  const playCountValues = presentIds.map((id) => playCounts[id] || 0);
+
+  return (
+    playCountValues.length > 0 &&
+    playCountValues.every((count) => count === playCountValues[0]) &&
+    playCountValues[0] > 0
+  );
+}
+
+export function getSpreadDoubleSelection(
   playerIds: string[],
   round: number,
   groupCount: number
@@ -233,11 +246,7 @@ export function generateAmericanoMatch(
     }
   }
 
-  const playCountValues = presentIds.map((id) => playCounts[id] || 0);
-  const hasUniformPlayCounts =
-    playCountValues.length > 0 &&
-    playCountValues.every((count) => count === playCountValues[0]) &&
-    playCountValues[0] > 0;
+  const hasUniformPlayCounts = hasUniformNonZeroPlayCounts(presentIds, playCounts);
 
   const lastMatch = existingMatches[existingMatches.length - 1];
   const recentTeammatePairs = getRecentTeammatePairs(lastMatch);
