@@ -59,7 +59,6 @@ function NewEventPageContent() {
         const data = await getEvent(sourceEventId);
         if (!data) {
           if (!cancelled) {
-            setSourceEvent(null);
             setError('Source event not found.');
           }
           return;
@@ -67,7 +66,6 @@ function NewEventPageContent() {
 
         if (data.clubId !== activeClub.id) {
           if (!cancelled) {
-            setSourceEvent(null);
             setError('Source event must belong to the active club.');
           }
           return;
@@ -78,7 +76,6 @@ function NewEventPageContent() {
         }
       } catch (err) {
         if (!cancelled) {
-          setSourceEvent(null);
           setError(err instanceof Error ? err.message : 'Failed to load source event.');
         }
       } finally {
