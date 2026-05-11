@@ -14,11 +14,11 @@ function NewEventPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { activeClub, isAuthenticated, isClubAdmin, isReady, user } = useAuth();
-  const sourceEventId = searchParams.get('duplicateFrom') ?? '';
+  const sourceEventId = searchParams.get('duplicateFrom')?.trim() || null;
   const nextPath = sourceEventId ? `/events/new?duplicateFrom=${sourceEventId}` : '/events/new';
   const [submitting, setSubmitting] = useState(false);
   const [sourceEvent, setSourceEvent] = useState<Event | null>(null);
-  const [sourceLoaded, setSourceLoaded] = useState(!sourceEventId);
+  const [sourceLoaded, setSourceLoaded] = useState(sourceEventId === null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
