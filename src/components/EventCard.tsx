@@ -66,12 +66,20 @@ export default function EventCard({
       </Link>
       {canManage && (
         <div className="px-5 pb-4 flex items-center justify-between gap-3">
-          <Link
-            href={`/events/edit?id=${event.id}`}
-            className="text-xs font-semibold text-green-700 transition-colors hover:text-green-900"
-          >
-            ✏️ Edit
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/events/edit?id=${event.id}`}
+              className="text-xs font-semibold text-green-700 transition-colors hover:text-green-900"
+            >
+              ✏️ Edit
+            </Link>
+            <Link
+              href={`/events/new?duplicateFrom=${event.id}`}
+              className="text-xs font-semibold text-blue-700 transition-colors hover:text-blue-900"
+            >
+              📄 Duplicate
+            </Link>
+          </div>
           <button
             onClick={(e) => {
               e.stopPropagation();
