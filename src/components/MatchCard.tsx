@@ -43,7 +43,11 @@ export default function MatchCard({
     }
 
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (!scoreEditorRef.current?.contains(event.target as Node)) {
+      if (
+        scoreEditorRef.current &&
+        event.target instanceof Node &&
+        !scoreEditorRef.current.contains(event.target)
+      ) {
         setActivePopover(null);
       }
     };
