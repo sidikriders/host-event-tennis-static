@@ -1,7 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Match, Participant } from '@/types';
+
+const SCORE_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
+
+type ScorePopoverTarget = 'teamA' | 'teamB' | null;
 
 interface MatchCardProps {
   match: Match;
@@ -23,6 +27,34 @@ export default function MatchCard({
   const [editing, setEditing] = useState(false);
   const [scoreA, setScoreA] = useState(match.scoreA?.toString() ?? '');
   const [scoreB, setScoreB] = useState(match.scoreB?.toString() ?? '');
+  const [activePopover, setActivePopover] = useState<ScorePopoverTarget>(null);
+  const scoreEditorRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!editing) {
+      setActivePopover(null);
+    }
+  }, [editing]);
+
+  useEffect(() => {
+    if (!activePopover) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (!scoreEditorRef.current?.contains(event.target as Node)) {
+        setActivePopover(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [activePopover]);
 
   const getNames = (ids: string[]) =>
     ids.map((id) => participants.find((p) => p.id === id)?.name ?? '?').join(' & ');
@@ -33,6 +65,16 @@ export default function MatchCard({
     if (isNaN(a) || isNaN(b) || a < 0 || b < 0) return;
     onScoreUpdate(match.id, a, b);
     setEditing(false);
+  };
+
+  const handleScoreSelect = (team: Exclude<ScorePopoverTarget, null>, value: number) => {
+    if (team === 'teamA') {
+      setScoreA(value.toString());
+    } else {
+      setScoreB(value.toString());
+    }
+
+    setActivePopover(null);
   };
 
   const statusColor =
@@ -87,24 +129,58 @@ export default function MatchCard({
       </div>
 
       {!readOnly && editing ? (
-        <div className="mt-4 flex items-center gap-3 justify-center">
-          <input
-            type="number"
-            min={0}
-            className="w-16 border border-gray-300 rounded-lg px-2 py-1 text-center font-bold text-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
-            value={scoreA}
-            onChange={(e) => setScoreA(e.target.value)}
-            placeholder="A"
-          />
+        <div ref={scoreEditorRef} className="mt-4 flex items-center gap-3 justify-center">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setActivePopover(activePopover === 'teamA' ? null : 'teamA')}
+              className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-center text-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
+            >
+              {scoreA || 'A'}
+            </button>
+            {activePopover === 'teamA' && (
+              <div className="absolute left-1/2 top-full z-10 mt-2 w-40 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
+                <div className="grid grid-cols-5 gap-2">
+                  {SCORE_OPTIONS.map((value) => (
+                    <button
+                      key={`team-a-score-${value}`}
+                      type="button"
+                      onClick={() => handleScoreSelect('teamA', value)}
+                      className="rounded-lg bg-gray-100 px-0 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-green-100 hover:text-green-800"
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <span className="text-gray-500 font-bold">–</span>
-          <input
-            type="number"
-            min={0}
-            className="w-16 border border-gray-300 rounded-lg px-2 py-1 text-center font-bold text-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
-            value={scoreB}
-            onChange={(e) => setScoreB(e.target.value)}
-            placeholder="B"
-          />
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setActivePopover(activePopover === 'teamB' ? null : 'teamB')}
+              className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-center text-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
+            >
+              {scoreB || 'B'}
+            </button>
+            {activePopover === 'teamB' && (
+              <div className="absolute left-1/2 top-full z-10 mt-2 w-40 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
+                <div className="grid grid-cols-5 gap-2">
+                  {SCORE_OPTIONS.map((value) => (
+                    <button
+                      key={`team-b-score-${value}`}
+                      type="button"
+                      onClick={() => handleScoreSelect('teamB', value)}
+                      className="rounded-lg bg-gray-100 px-0 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-green-100 hover:text-green-800"
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button
             onClick={handleSave}
             className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700"
