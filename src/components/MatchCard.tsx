@@ -132,23 +132,30 @@ export default function MatchCard({
         <div ref={scoreEditorRef} className="mt-4 flex items-center gap-3 justify-center">
           <div className="relative">
             <button
+              id={`team-a-score-trigger-${match.id}`}
               type="button"
               onClick={() => setActivePopover(activePopover === 'teamA' ? null : 'teamA')}
               aria-label="Select score for Team A"
               aria-expanded={activePopover === 'teamA'}
-              aria-haspopup="dialog"
+              aria-haspopup="menu"
               className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-center text-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
             >
               {scoreA || 'A'}
             </button>
             {activePopover === 'teamA' && (
-              <div className="absolute left-1/2 top-full z-10 mt-2 w-40 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
+              <div
+                role="menu"
+                aria-labelledby={`team-a-score-trigger-${match.id}`}
+                className="absolute left-1/2 top-full z-10 mt-2 w-40 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-2 shadow-xl"
+              >
                 <div className="grid grid-cols-5 gap-2">
                   {SCORE_OPTIONS.map((value) => (
                     <button
                       key={`team-a-score-${value}`}
                       type="button"
                       onClick={() => handleScoreSelect('teamA', value)}
+                      aria-label={`Score ${value}`}
+                      role="menuitem"
                       className="rounded-lg bg-gray-100 px-0 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-green-100 hover:text-green-800"
                     >
                       {value}
@@ -161,23 +168,30 @@ export default function MatchCard({
           <span className="text-gray-500 font-bold">–</span>
           <div className="relative">
             <button
+              id={`team-b-score-trigger-${match.id}`}
               type="button"
               onClick={() => setActivePopover(activePopover === 'teamB' ? null : 'teamB')}
               aria-label="Select score for Team B"
               aria-expanded={activePopover === 'teamB'}
-              aria-haspopup="dialog"
+              aria-haspopup="menu"
               className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-center text-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
             >
               {scoreB || 'B'}
             </button>
             {activePopover === 'teamB' && (
-              <div className="absolute left-1/2 top-full z-10 mt-2 w-40 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
+              <div
+                role="menu"
+                aria-labelledby={`team-b-score-trigger-${match.id}`}
+                className="absolute left-1/2 top-full z-10 mt-2 w-40 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-2 shadow-xl"
+              >
                 <div className="grid grid-cols-5 gap-2">
                   {SCORE_OPTIONS.map((value) => (
                     <button
                       key={`team-b-score-${value}`}
                       type="button"
                       onClick={() => handleScoreSelect('teamB', value)}
+                      aria-label={`Score ${value}`}
+                      role="menuitem"
                       className="rounded-lg bg-gray-100 px-0 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-green-100 hover:text-green-800"
                     >
                       {value}
