@@ -134,6 +134,9 @@ export default function MatchCard({
             <button
               type="button"
               onClick={() => setActivePopover(activePopover === 'teamA' ? null : 'teamA')}
+              aria-label="Select score for Team A"
+              aria-expanded={activePopover === 'teamA'}
+              aria-haspopup="dialog"
               className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-center text-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
             >
               {scoreA || 'A'}
@@ -160,6 +163,9 @@ export default function MatchCard({
             <button
               type="button"
               onClick={() => setActivePopover(activePopover === 'teamB' ? null : 'teamB')}
+              aria-label="Select score for Team B"
+              aria-expanded={activePopover === 'teamB'}
+              aria-haspopup="dialog"
               className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-center text-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
             >
               {scoreB || 'B'}
