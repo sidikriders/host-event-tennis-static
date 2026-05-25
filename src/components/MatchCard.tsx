@@ -5,7 +5,8 @@ import { Match, Participant } from '@/types';
 
 const SCORE_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
 
-type ScorePopoverTarget = 'teamA' | 'teamB' | null;
+type ScoreTarget = 'teamA' | 'teamB';
+type ScorePopoverTarget = ScoreTarget | null;
 
 interface MatchCardProps {
   match: Match;
@@ -41,18 +42,18 @@ export default function MatchCard({
       return;
     }
 
-    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (!scoreEditorRef.current?.contains(event.target as Node)) {
         setActivePopover(null);
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
 
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [activePopover]);
 
@@ -67,7 +68,7 @@ export default function MatchCard({
     setEditing(false);
   };
 
-  const handleScoreSelect = (team: Exclude<ScorePopoverTarget, null>, value: number) => {
+  const handleScoreSelect = (team: ScoreTarget, value: number) => {
     if (team === 'teamA') {
       setScoreA(value.toString());
     } else {
